@@ -40,14 +40,14 @@ public class CheckoutService {
 
     @Transactional
     public SalesOrder processCheckout(UUID storeId, Long customerId, Long employeeId, List<CartItemDto> cartItems) {
-        // 1. Fetch store and optional entities
+        // Fetch store and optional entities
         Store store = storeRepository.findById(storeId)
                 .orElseThrow(() -> new EntityNotFoundException("Store not found: " + storeId));
         
         Customer customer = customerId != null ? customerRepository.findById(customerId).orElse(null) : null;
         Employee employee = employeeId != null ? employeeRepository.findById(employeeId).orElse(null) : null;
 
-        // 2. Initialize Sales Order header
+        // Initialize Sales Order header
         SalesOrder salesOrder = new SalesOrder();
         salesOrder.setStore(store);
         salesOrder.setCustomer(customer);
@@ -57,7 +57,7 @@ public class CheckoutService {
         BigDecimal totalAmount = BigDecimal.ZERO;
         salesOrder = salesOrderRepository.save(salesOrder); // Save to get generated order ID
 
-        // 3. Process each line item, validate stock, and deduct inventory
+        // Process each line item, validate stock, and deduct inventory
         for (CartItemDto cartItem : cartItems) {
             Product product = productRepository.findById(cartItem.productId())
                     .orElseThrow(() -> new EntityNotFoundException("Product not found: " + cartItem.productId()));
@@ -92,7 +92,7 @@ public class CheckoutService {
             totalAmount = totalAmount.add(lineTotal);
         }
 
-        // 4. Finalize order total amount
+        // Finalize order total amount
         salesOrder.setTotalAmount(totalAmount);
         return salesOrderRepository.save(salesOrder);
     }
