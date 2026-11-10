@@ -1,8 +1,12 @@
 package com.warehousemanagementsystem.model;
 
 import jakarta.persistence.*;
+import lombok.*;
 import java.util.UUID;
 
+@NoArgsConstructor
+@AllArgsConstructor
+@Data
 @Entity
 @Table(name = "store_fulfillment_routing")
 public class StoreFulfillmentRouting {

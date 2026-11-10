@@ -1,10 +1,14 @@
 package com.warehousemanagementsystem.model;
 
 import jakarta.persistence.*;
+import lombok.*;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 
+@NoArgsConstructor
+@AllArgsConstructor
+@Data
 @Entity
 @Table(name = "sales_orders")
 public class SalesOrder {

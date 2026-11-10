@@ -1,10 +1,14 @@
 package com.warehousemanagementsystem.model;
 
 import jakarta.persistence.*;
+import lombok.*;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
+@NoArgsConstructor
+@AllArgsConstructor
+@Data
 @Entity
 @Table(name = "stores")
 public class Store {

@@ -1,10 +1,14 @@
 package com.warehousemanagementsystem.model;
 
 import jakarta.persistence.*;
+import lombok.*;
 import java.io.Serializable;
 import java.util.Objects;
 import java.util.UUID;
 
+@NoArgsConstructor
+@AllArgsConstructor
+@Data
 @Entity
 @Table(name = "inventory_balances")
 public class InventoryBalance {
