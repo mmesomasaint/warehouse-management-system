@@ -1,12 +1,3 @@
-server:
-  port: 8080
-spring:
-  datasource:
-    url: jdbc:mysql://localhost:3306/db
-    username: root-user
-    password: test-password
-    driver-class-name: org.postgresql.Driver
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
+spring: 
+  profiles:
+    active: dev
