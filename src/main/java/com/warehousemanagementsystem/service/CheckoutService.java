@@ -23,12 +23,12 @@ public class CheckoutService {
     private final InventoryBalanceRepository inventoryBalanceRepository;
 
     public CheckoutService(SalesOrderRepository salesOrderRepository,
-                           SalesOrderItemRepository salesOrderItemRepository,
-                           StoreRepository storeRepository,
-                           CustomerRepository customerRepository,
-                           EmployeeRepository employeeRepository,
-                           ProductRepository productRepository,
-                           InventoryBalanceRepository inventoryBalanceRepository) {
+                        SalesOrderItemRepository salesOrderItemRepository,
+                        StoreRepository storeRepository,
+                        CustomerRepository customerRepository,
+                        EmployeeRepository employeeRepository,
+                        ProductRepository productRepository,
+                        InventoryBalanceRepository inventoryBalanceRepository) {
         this.salesOrderRepository = salesOrderRepository;
         this.salesOrderItemRepository = salesOrderItemRepository;
         this.storeRepository = storeRepository;
