@@ -2,6 +2,10 @@ package com.warehousemanagementsystem.service;
 
 import com.warehousemanagementsystem.model.*;
 import com.warehousemanagementsystem.repository.*;
+import com.warehousemanagementsystem.dto.CartItemDto;
+import com.warehousemanagementsystem.dto.CheckoutRequestDto;
+import com.warehousemanagementsystem.dto.CheckoutResponseDto;
+
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,7 +43,13 @@ public class CheckoutService {
     }
 
     @Transactional
-    public SalesOrder processCheckout(UUID storeId, Long customerId, Long employeeId, List<CartItemDto> cartItems) {
+    public CheckoutResponseDto processCheckout(CheckoutRequestDto request) {
+        // Initialize variables
+        UUID storeId = request.storeId();
+        Long customerId = request.customerId();
+        Long employeeId = request.employeeId();
+        List<CartItemDto> cartItems = request.cartItems();
+
         // Fetch store and optional entities
         Store store = storeRepository.findById(storeId)
                 .orElseThrow(() -> new EntityNotFoundException("Store not found: " + storeId));
@@ -94,9 +104,17 @@ public class CheckoutService {
 
         // Finalize order total amount
         salesOrder.setTotalAmount(totalAmount);
-        return salesOrderRepository.save(salesOrder);
-    }
+        salesOrder = salesOrderRepository.save(salesOrder);
 
-    // DTO record for cart items
-    public record CartItemDto(UUID productId, int quantity, BigDecimal unitPrice) {}
+        // Convert to Dto response
+        return CheckoutResponseDto.builder()
+            .orderId(salesOrder.getOrderId())
+            .store(salesOrder.getStore())
+            .customer(salesOrder.getCustomer())
+            .employee(salesOrder.getEmployee()) 
+            .orderDate(salesOrder.getOrderDate()) 
+            .totalAmount(salesOrder.getTotalAmount()) 
+            .orderItems(salesOrder.getOrderItems())
+            .build();
+    }
 }
