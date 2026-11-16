@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.constraints.*;
 
 import com.warehousemanagementsystem.dto.CreateTransferRequestDto;
 import com.warehousemanagementsystem.dto.ReceiveTransferRequestDto;
@@ -20,19 +21,19 @@ public class InventoryTransferController {
   }
 
   @PostMapping ("/createtransfer")
-  ResponseEntity<TransferResponseDto> handleCreateTransfer(@RequestBody CreateTransferRequestDto transferRequest ) {
+  ResponseEntity<TransferResponseDto> handleCreateTransfer(@Valid @RequestBody CreateTransferRequestDto transferRequest ) {
     TransferResponseDto response = inventoryTransferService.createTransfer(transferRequest);
     return ResponseEntity.ok().body(response);
   }
 
   @PostMapping ("/shiptransfer/{id}") 
-  ResponseEntity<TransferResponseDto> handleShipTransfer(@PathVariable UUID transferId) {
+  ResponseEntity<TransferResponseDto> handleShipTransfer(@NotBlank @PathVariable UUID transferId) {
     TransferResponseDto response = inventoryTransferService.shipTransfer(transferId);
     return ResponseEntity.ok().body(response);
   }
 
   @PostMapping ("/receiveTransfer")
-  ResponseEntity<TransferResponseDto> handleReceiveTransfer(@RequestBody ReceiveTransferRequestDto request) {
+  ResponseEntity<TransferResponseDto> handleReceiveTransfer(@Valid @RequestBody ReceiveTransferRequestDto request) {
     TransferResponseDto response = inventoryTransferService.receiveTransfer(request);
     return ResponseEntity.ok().body(response);
   }
