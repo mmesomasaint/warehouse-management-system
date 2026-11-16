@@ -2,6 +2,10 @@ package com.warehousemanagementsystem.service;
 
 import com.warehousemanagementsystem.model.*;
 import com.warehousemanagementsystem.repository.*;
+import com.warehousemanagementsystem.dto.CreateTransferRequestDto;
+import com.warehousemanagementsystem.dto.TransferResponseDto;
+import com.warehousemanagementsystem.dto.ReceiveTransferRequestDto;
+import com.warehousemanagementsystem.dto.TransferItemRequest;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,7 +43,12 @@ public class InventoryTransferService {
     }
 
     @Transactional
-    public InventoryTransfer createTransfer(UUID sourceRdcId, UUID sourceStoreId, UUID destinationStoreId, List<TransferItemRequest> items) {
+    public TransferResponseDto createTransfer(CreateTransferRequestDto transferRequest) {
+        UUID sourceRdcId = transferRequest.sourceRdcId();
+        UUID sourceStoreId = transferRequest.sourceStoreId();
+        UUID destinationStoreId = transferRequest.destinationStoreId();
+        List<TransferItemRequest> items = transferRequest.items();
+
         if (sourceRdcId == null && sourceStoreId == null) {
             throw new IllegalArgumentException("Either sourceRdcId or sourceStoreId must be provided.");
         }
@@ -70,11 +79,11 @@ public class InventoryTransferService {
             transferItemRepository.save(transferItem);
         }
 
-        return transfer;
+        return buildTransferResponse(transfer);
     }
 
     @Transactional
-    public InventoryTransfer shipTransfer(UUID transferId) {
+    public TransferResponseDto shipTransfer(UUID transferId) {
         InventoryTransfer transfer = transferRepository.findById(transferId)
                 .orElseThrow(() -> new EntityNotFoundException("Transfer not found: " + transferId));
 
@@ -84,11 +93,17 @@ public class InventoryTransferService {
 
         transfer.setTransferStatus(TransferStatus.IN_TRANSIT);
         transfer.setShipDate(OffsetDateTime.now());
-        return transferRepository.save(transfer);
+        transfer = transferRepository.save(transfer);
+
+        return buildTransferResponse(transfer);
     }
 
     @Transactional
-    public InventoryTransfer receiveTransfer(UUID transferId, Map<UUID, Integer> receivedQuantities, Long defaultZoneId) {
+    public TransferResponseDto receiveTransfer(ReceiveTransferRequestDto transferRequest) {
+        UUID transferId = transferRequest.transferId();
+        Map<UUID, Integer> receivedQuantities = transferRequest.receivedQuantities(); 
+        Long defaultZoneId = transferRequest.defaultZoneId();
+
         InventoryTransfer transfer = transferRepository.findById(transferId)
                 .orElseThrow(() -> new EntityNotFoundException("Transfer not found: " + transferId));
 
@@ -136,8 +151,22 @@ public class InventoryTransferService {
 
         transfer.setTransferStatus(TransferStatus.DELIVERED);
         transfer.setActualArrival(OffsetDateTime.now());
-        return transferRepository.save(transfer);
+        transfer = transferRepository.save(transfer);
+
+        return buildTransferResponse(transfer);
     }
 
-    public record TransferItemRequest(UUID productId, int quantityShipped) {}
+    private TransferResponseDto buildTransferResponse (InventoryTransfer transfer) {
+        return TransferResponseDto.builder()
+            .transferId(transfer.getTransferId())
+            .sourceRdc(transfer.getSourceRdc())
+            .sourceStore(transfer.getSourceStore())
+            .destinationStore(transfer.getDestinationStore())
+            .transferStatus(transfer.getTransferStatus())
+            .shipDate(transfer.getShipDate())
+            .estimatedArrival(transfer.getEstimatedArrival())
+            .actualArrival(transfer.getActualArrival())
+            .transferItems(transfer.getTransferItems())
+            .build();
+    }
 }
