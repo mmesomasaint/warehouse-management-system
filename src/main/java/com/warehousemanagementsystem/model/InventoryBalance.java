@@ -66,8 +66,8 @@ public class InventoryBalance {
             if (!(o instanceof InventoryBalanceId)) return false;
             InventoryBalanceId that = (InventoryBalanceId) o;
             return Objects.equals(storeId, that.storeId) &&
-                  Objects.equals(productId, that.productId) &&
-                  Objects.equals(zoneId, that.zoneId);
+                Objects.equals(productId, that.productId) &&
+                Objects.equals(zoneId, that.zoneId);
         }
 
         @Override
