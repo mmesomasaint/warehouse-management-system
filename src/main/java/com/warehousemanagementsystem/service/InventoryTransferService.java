@@ -20,19 +20,22 @@ public class InventoryTransferService {
     private final StoreRepository storeRepository;
     private final ProductRepository productRepository;
     private final InventoryBalanceRepository inventoryBalanceRepository;
+    private final InventoryZoneRepository inventoryZoneRepository;
 
     public InventoryTransferService(InventoryTransferRepository transferRepository,
                                     InventoryTransferItemRepository transferItemRepository,
                                     RegionalDistributionCenterRepository rdcRepository,
                                     StoreRepository storeRepository,
                                     ProductRepository productRepository,
-                                    InventoryBalanceRepository inventoryBalanceRepository) {
+                                    InventoryBalanceRepository inventoryBalanceRepository,
+                                    InventoryZoneRepository inventoryZoneRepository ) {
         this.transferRepository = transferRepository;
         this.transferItemRepository = transferItemRepository;
         this.rdcRepository = rdcRepository;
         this.storeRepository = storeRepository;
         this.productRepository = productRepository;
         this.inventoryBalanceRepository = inventoryBalanceRepository;
+        this.inventoryZoneRepository = inventoryZoneRepository;
     }
 
     @Transactional
@@ -94,28 +97,39 @@ public class InventoryTransferService {
         }
 
         List<InventoryTransferItem> items = transferItemRepository.findById_TransferId(transferId);
-        UUID destStoreId = transfer.getDestinationStore().getStoreId();
+        Store destinationStore = transfer.getDestinationStore();
+        UUID destStoreId = destinationStore.getStoreId();
+
+        // Fetch the destination inventory zone (e.g 'Back Stockroom' or 'Loading Dock')
+        InventoryZone zone = inventoryZoneRepository.findById(defaultZoneId)
+            .orElseThrow(() -> new EntityNotFoundException("InventoryZone not found: " + defaultZoneId));
 
         for (InventoryTransferItem item : items) {
-            UUID productId = item.getProduct().getProductId();
+            Product product = item.getProduct();
+            UUID productId = product.getProductId();
+
             int receivedQty = receivedQuantities.getOrDefault(productId, item.getQuantityShipped());
             
             item.setQuantityReceived(receivedQty);
             transferItemRepository.save(item);
 
-            // Update or create destination store inventory balance
+            // Construct the composite key ID
             InventoryBalance.InventoryBalanceId balanceId = new InventoryBalance.InventoryBalanceId(destStoreId, productId, defaultZoneId);
+
+            // Find existing balance or initialize a new one if it doesn't exist yet for this store/product/zone
             InventoryBalance balance = inventoryBalanceRepository.findById(balanceId).orElseGet(() -> {
                 InventoryBalance newBalance = new InventoryBalance();
-                // set up embedded id and relationships manually if needed
+                newBalance.setId(balanceId);
+                newBalance.setStore(destinationStore);
+                newBalance.setProduct(product);
+                newBalance.setZone(zone);
+                newBalance.setQuantityOnHand(0);
+                newBalance.setAllocatedQuantity(0);
+                newBalance.setMinimumSafetyStock(10); // Using our DEFAULT_SAFETY_THRESHOLD from schema
                 return newBalance;
             });
             
-            // If it's a new balance object from getOrElse
-            if (balance.getId() == null) {
-                // You would set fields here or fetch via proper mapping
-            }
-            
+            // Add the received shipment quantity to the current stock on hand
             balance.setQuantityOnHand(balance.getQuantityOnHand() + receivedQty);
             inventoryBalanceRepository.save(balance);
         }
