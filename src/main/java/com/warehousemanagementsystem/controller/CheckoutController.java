@@ -4,11 +4,10 @@ import com.warehousemanagementsystem.dto.CheckoutRequestDto;
 import com.warehousemanagementsystem.dto.CheckoutResponseDto;
 import com.warehousemanagementsystem.service.CheckoutService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
+@RequestMapping ("/api")
 public class CheckoutController {
   private final CheckoutService checkoutService;
 
