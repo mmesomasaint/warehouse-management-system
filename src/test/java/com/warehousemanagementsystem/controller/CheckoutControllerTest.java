@@ -1,52 +1,50 @@
 package com.warehousemanagementsystem.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.warehousemanagementsystem.service.CheckoutService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.warehousemanagementsystem.service.CheckoutService;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 @WebMvcTest(CheckoutController.class)
-public class CheckoutControllerTest {
-    @Autowired 
+@AutoConfigureMockMvc(addFilters = false) // Bypasses JWT filter for direct controller slice testing
+class CheckoutControllerTest {
+
+    @Autowired
     private MockMvc mockMvc;
 
-    @MockitoBean
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @MockBean
     private CheckoutService checkoutService;
 
-    @Test 
-    void shouldReturn200WhenRequestIsValid() throws Exception {
-        CheckoutResponseDto response = CheckoutResponseDto.builder()
-            .orderId(UUID.randomUUID())
-            .store(new Store())
-            .Customer(new Customer())
-            .Employee(new Employee())
-            .build();
+    @Test
+    @WithMockUser(authorities = "sales:checkout")
+    void shouldReturnBadRequestWhenCheckoutRequestHasMissingFields() throws Exception {
+        // Arrange - missing storeId
+        CheckoutController.CheckoutRequest invalidRequest = new CheckoutController.CheckoutRequest(
+                null,
+                1L,
+                List.of(new CheckoutService.CartItemDto(UUID.randomUUID(), 1, BigDecimal.TEN))
+        );
 
-        when(checkoutService.processCheckout(any(CheckoutRequestDto.class))).thenReturn(response);
-
-        mockMvc.perform(post("/api/products")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content("""
-                {
-                    "name": "Laptop",
-                    "price": 900.00
-                }
-                """
-            ))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.id").value(1L));
+        // Act & Assert
+        mockMvc.perform(post("/api/checkout")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andExpect(status().isBadRequest());
     }
 }
