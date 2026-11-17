@@ -9,6 +9,7 @@ import com.warehousemanagementsystem.dto.TransferItemRequest;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -43,6 +44,7 @@ public class InventoryTransferService {
     }
 
     @Transactional
+    @PreAuthorize("hasAuthority('transfer:create')") // Only Logistics Coordinators, Managers, or Admins can initiate a transfer
     public TransferResponseDto createTransfer(CreateTransferRequestDto transferRequest) {
         UUID sourceRdcId = transferRequest.sourceRdcId();
         UUID sourceStoreId = transferRequest.sourceStoreId();
@@ -83,6 +85,7 @@ public class InventoryTransferService {
     }
 
     @Transactional
+    @PreAuthorize("hasAuthority('transfer:ship')") // Only Logistics Coordinators, Managers, or Admins can ship
     public TransferResponseDto shipTransfer(UUID transferId) {
         InventoryTransfer transfer = transferRepository.findById(transferId)
                 .orElseThrow(() -> new EntityNotFoundException("Transfer not found: " + transferId));
@@ -99,6 +102,7 @@ public class InventoryTransferService {
     }
 
     @Transactional
+    @PreAuthorize("hasAuthority('transfer:receive')") // Only staff with receive rights
     public TransferResponseDto receiveTransfer(ReceiveTransferRequestDto transferRequest) {
         UUID transferId = transferRequest.transferId();
         Map<UUID, Integer> receivedQuantities = transferRequest.receivedQuantities(); 

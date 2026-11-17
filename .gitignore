@@ -34,6 +34,7 @@ application-dev.properties
 application-dev.yml
 secrets.yml
 override.properties
+certs/
 
 ### Logs & Temporary Data ###
 logs/

@@ -9,6 +9,7 @@ import com.warehousemanagementsystem.dto.CheckoutResponseDto;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -43,6 +44,7 @@ public class CheckoutService {
     }
 
     @Transactional
+    @PreAuthorize("hasAuthority('sales:checkout')")
     public CheckoutResponseDto processCheckout(CheckoutRequestDto request) {
         // Initialize variables
         UUID storeId = request.storeId();

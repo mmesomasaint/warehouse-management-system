@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.constraints.*;
 
 @RestController
-@RequestMapping ("/api")
+@RequestMapping ("/api/checkout")
 public class CheckoutController {
   private final CheckoutService checkoutService;
 
@@ -16,9 +16,9 @@ public class CheckoutController {
     this.checkoutService = checkoutService;
   }
 
-  @PostMapping("/checkout")
+  @PostMapping
   public ResponseEntity<CheckoutResponseDto> handleCheckout(@Valid @RequestBody CheckoutRequestDto request) {
     CheckoutResponseDto response = checkoutService.processCheckout(request);
-    return ResponseEntity.ok().body(response);
+    return ResponseEntity.ok(response);
   }
 }
