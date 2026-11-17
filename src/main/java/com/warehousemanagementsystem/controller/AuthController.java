@@ -1,6 +1,6 @@
 package com.warehousemanagementsystem.controller;
 
-import com.warehousemanagementsystem.security.JwtTokenProvider;
+import com.warehousemanagementsystem.security.TokenService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -16,11 +16,11 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
-    private final JwtTokenProvider tokenProvider;
+    private final TokenService tokenService;
 
-    public AuthController(AuthenticationManager authenticationManager, JwtTokenProvider tokenProvider) {
+    public AuthController(AuthenticationManager authenticationManager, TokenService tokenService) {
         this.authenticationManager = authenticationManager;
-        this.tokenProvider = tokenProvider;
+        this.tokenService = tokenService;
     }
 
     @PostMapping("/login")
