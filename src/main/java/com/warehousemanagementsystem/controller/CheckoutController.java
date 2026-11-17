@@ -5,7 +5,7 @@ import com.warehousemanagementsystem.dto.CheckoutResponseDto;
 import com.warehousemanagementsystem.service.CheckoutService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import jakarta.validation.constraints.*;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping ("/api/checkout")

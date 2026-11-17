@@ -33,7 +33,7 @@ public class AuthController {
         );
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = tokenProvider.generateToken(authentication);
+        String jwt = tokenService.generateToken(authentication);
 
         return ResponseEntity.ok(new JwtResponse(jwt));
     }

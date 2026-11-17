@@ -10,8 +10,9 @@ package com.warehousemanagementsystem;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
-import com.warehousemanagementsystem.config.RsaKeyProperties;
+import com.warehousemanagementsystem.security.RsaKeyProperties;
 
 @EnableConfigurationProperties(RsaKeyProperties.class)
 @SpringBootApplication

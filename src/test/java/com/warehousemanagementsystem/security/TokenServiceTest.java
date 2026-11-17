@@ -3,6 +3,7 @@ package com.warehousemanagementsystem.security;
 import com.warehousemanagementsystem.model.Employee;
 import com.warehousemanagementsystem.model.Store;
 import com.warehousemanagementsystem.model.security.EmployeeRole;
+import com.warehousemanagementsystem.security.TokenService;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
@@ -78,7 +79,9 @@ class TokenServiceTest {
 
         EmployeePrincipal principal = new EmployeePrincipal(employee);
         when(authentication.getPrincipal()).thenReturn(principal);
-        when(authentication.getAuthorities()).thenReturn(employee.getRole().getAuthorities());
+        doReturn(employee.getRole().getAuthorities())
+            .when(authentication)
+            .getAuthorities();
     }
 
     @Test

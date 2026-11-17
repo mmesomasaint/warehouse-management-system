@@ -4,6 +4,8 @@ import com.warehousemanagementsystem.exception.InsufficientStockException;
 import com.warehousemanagementsystem.model.*;
 import com.warehousemanagementsystem.repository.*;
 import com.warehousemanagementsystem.security.EmployeeContextService;
+import com.warehousemanagementsystem.dto.*;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,6 +32,7 @@ class CheckoutServiceTest {
     @Mock private CustomerRepository customerRepository;
     @Mock private ProductRepository productRepository;
     @Mock private InventoryBalanceRepository inventoryBalanceRepository;
+    @Mock private EmployeeRepository employeeRepository;
     @Mock private EmployeeContextService employeeContextService;
 
     @InjectMocks
@@ -62,9 +65,11 @@ class CheckoutServiceTest {
     @Test
     void shouldThrowExceptionWhenStockIsInsufficient() {
         // Arrange
-        CheckoutService.CartItemDto cartItem = new CheckoutService.CartItemDto(productId, 5, BigDecimal.valueOf(19.99));
+        CartItemDto cartItem = new CartItemDto(productId, 5, BigDecimal.valueOf(19.99));
+        CheckoutRequestDto checkoutRequest = new CheckoutRequestDto(storeId, null, null, List.of(cartItem));
 
-        when(employeeContextService.getCurrentEmployee()).thenReturn(mockEmployee);
+        when(employeeContextService.getCurrentEmployeeId()).thenReturn(1L);
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(mockEmployee));
         when(storeRepository.findById(storeId)).thenReturn(Optional.of(mockStore));
         when(productRepository.findById(productId)).thenReturn(Optional.of(mockProduct));
 
@@ -74,7 +79,7 @@ class CheckoutServiceTest {
         when(inventoryBalanceRepository.findById_StoreId(storeId)).thenReturn(List.of(balance));
 
         // Act & Assert
-        assertThatThrownBy(() -> checkoutService.processCheckout(storeId, null, List.of(cartItem)))
+        assertThatThrownBy(() -> checkoutService.processCheckout(checkoutRequest))
                 .isInstanceOf(InsufficientStockException.class);
 
         verify(salesOrderRepository, never()).save(any());
@@ -83,9 +88,11 @@ class CheckoutServiceTest {
     @Test
     void shouldProcessCheckoutSuccessfullyWhenStockIsSufficient() {
         // Arrange
-        CheckoutService.CartItemDto cartItem = new CheckoutService.CartItemDto(productId, 2, BigDecimal.valueOf(19.99));
+        CartItemDto cartItem = new CartItemDto(productId, 2, BigDecimal.valueOf(19.99));
+        CheckoutRequestDto checkoutRequest = new CheckoutRequestDto(storeId, null, null, List.of(cartItem));
 
-        when(employeeContextService.getCurrentEmployee()).thenReturn(mockEmployee);
+        when(employeeContextService.getCurrentEmployeeId()).thenReturn(1L);
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(mockEmployee));
         when(storeRepository.findById(storeId)).thenReturn(Optional.of(mockStore));
         when(productRepository.findById(productId)).thenReturn(Optional.of(mockProduct));
 
@@ -96,7 +103,7 @@ class CheckoutServiceTest {
         when(salesOrderRepository.save(any(SalesOrder.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // Act
-        SalesOrder order = checkoutService.processCheckout(storeId, null, List.of(cartItem));
+        SalesOrder order = checkoutService.processCheckout(checkoutRequest);
 
         // Assert
         assertThat(order).isNotNull();

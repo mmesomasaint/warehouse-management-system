@@ -2,6 +2,7 @@ package com.warehousemanagementsystem.service;
 
 import com.warehousemanagementsystem.model.*;
 import com.warehousemanagementsystem.repository.*;
+
 import com.warehousemanagementsystem.security.EmployeeContextService;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -82,9 +83,10 @@ class InventoryTransferServiceTest {
         List<InventoryTransferService.TransferItemRequest> items = List.of(
                 new InventoryTransferService.TransferItemRequest(productId, 10)
         );
+        CreateTransferRequestDto createTransferRequest = new CreateTransferRequestDto(null, null, storeId, items);
 
         // Act & Assert
-        assertThatThrownBy(() -> transferService.createTransfer(null, null, storeId, items))
+        assertThatThrownBy(() -> transferService.createTransfer(creaeteTransferRequest))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Either sourceRdcId or sourceStoreId must be provided");
 
@@ -97,6 +99,7 @@ class InventoryTransferServiceTest {
         List<InventoryTransferService.TransferItemRequest> items = List.of(
                 new InventoryTransferService.TransferItemRequest(productId, 15)
         );
+        CreateTransferRequestDto createTransferRequest = new CreateTransferRequestDto(rdcId, null, storeId, items);
 
         when(rdcRepository.findById(rdcId)).thenReturn(Optional.of(mockRdc));
         when(storeRepository.findById(storeId)).thenReturn(Optional.of(mockStore));
@@ -108,7 +111,7 @@ class InventoryTransferServiceTest {
         });
 
         // Act
-        InventoryTransfer transfer = transferService.createTransfer(rdcId, null, storeId, items);
+        InventoryTransfer transfer = transferService.createTransfer(createTransferRequest);
 
         // Assert
         assertThat(transfer).isNotNull();
@@ -121,7 +124,7 @@ class InventoryTransferServiceTest {
     @Test
     void shouldShipTransferSuccessfully() {
         // Arrange
-        when(employeeContextService.getCurrentEmployee()).thenReturn(mockEmployee);
+        when(employeeContextService.getCurrentEmployeeId()).thenReturn(1L);
 
         InventoryTransfer pendingTransfer = new InventoryTransfer();
         pendingTransfer.setTransferId(transferId);
@@ -142,7 +145,7 @@ class InventoryTransferServiceTest {
     @Test
     void shouldThrowExceptionWhenShippingNonPendingTransfer() {
         // Arrange
-        when(employeeContextService.getCurrentEmployee()).thenReturn(mockEmployee);
+        when(employeeContextService.getCurrentEmployeeId()).thenReturn(1L);
 
         InventoryTransfer transitTransfer = new InventoryTransfer();
         transitTransfer.setTransferId(transferId);
@@ -161,7 +164,7 @@ class InventoryTransferServiceTest {
     @Test
     void shouldReceiveTransferAndCreateNewInventoryBalanceSuccessfully() {
         // Arrange
-        when(employeeContextService.getCurrentEmployee()).thenReturn(mockEmployee);
+        when(employeeContextService.getCurrentEmployeeId()).thenReturn(1L);
 
         InventoryTransfer transitTransfer = new InventoryTransfer();
         transitTransfer.setTransferId(transferId);
@@ -172,9 +175,10 @@ class InventoryTransferServiceTest {
         transferItem.setProduct(mockProduct);
         transferItem.setQuantityShipped(20);
 
-        Map<UUID, InventoryTransferService.TransferReceiptDto> receiptMap = Map.of(
-                productId, new InventoryTransferService.TransferReceiptDto(20, 0)
+        Map<UUID, Integer> receivedQty = Map.of(
+                productId, 20
         );
+        ReceiveTransferRequestDto receiveTransferRequest = new ReceiveTransferRequestDto(transferId, receivedQty, zoneId);
 
         when(transferRepository.findById(transferId)).thenReturn(Optional.of(transitTransfer));
         when(transferItemRepository.findById_TransferId(transferId)).thenReturn(List.of(transferItem));
@@ -185,7 +189,7 @@ class InventoryTransferServiceTest {
         when(transferRepository.save(any(InventoryTransfer.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // Act
-        InventoryTransfer deliveredTransfer = transferService.receiveOrRejectTransfer(transferId, receiptMap, zoneId);
+        InventoryTransfer deliveredTransfer = transferService.receiveTransfer(receiveTransferRequest);
 
         // Assert
         assertThat(deliveredTransfer.getTransferStatus()).isEqualTo(TransferStatus.DELIVERED);

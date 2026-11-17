@@ -2,11 +2,12 @@ package com.warehousemanagementsystem.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.warehousemanagementsystem.service.CheckoutService;
+import com.warehousemanagementsystem.dto.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
@@ -28,17 +29,18 @@ class CheckoutControllerTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @MockBean
+    @MockitoBean
     private CheckoutService checkoutService;
 
     @Test
     @WithMockUser(authorities = "sales:checkout")
     void shouldReturnBadRequestWhenCheckoutRequestHasMissingFields() throws Exception {
         // Arrange - missing storeId
-        CheckoutController.CheckoutRequest invalidRequest = new CheckoutController.CheckoutRequest(
+        CheckoutRequestDto invalidRequest = new CheckoutRequestDto(
                 null,
                 1L,
-                List.of(new CheckoutService.CartItemDto(UUID.randomUUID(), 1, BigDecimal.TEN))
+                1L,
+                List.of(new CartItemDto(UUID.randomUUID(), 1, BigDecimal.TEN))
         );
 
         // Act & Assert

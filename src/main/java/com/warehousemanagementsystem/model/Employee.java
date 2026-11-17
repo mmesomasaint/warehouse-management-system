@@ -1,5 +1,7 @@
 package com.warehousemanagementsystem.model;
 
+import com.warehousemanagementsystem.model.security.EmployeeRole;
+
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -25,7 +27,7 @@ public class Employee {
     private String email;
 
     @Column(name = "password_hash", nullable = false, length = 255)
-    private string passwordHash;
+    private String passwordHash;
 
     @Column(name = "first_name", nullable = false, length = 50)
     private String firstName;
