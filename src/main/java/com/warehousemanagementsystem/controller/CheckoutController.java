@@ -4,6 +4,7 @@ import com.warehousemanagementsystem.dto.CheckoutRequestDto;
 import com.warehousemanagementsystem.dto.CheckoutResponseDto;
 import com.warehousemanagementsystem.service.CheckoutService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
@@ -17,6 +18,7 @@ public class CheckoutController {
   }
 
   @PostMapping
+  @PreAuthorize("hasAuthority('sales:checkout')")
   public ResponseEntity<CheckoutResponseDto> handleCheckout(@Valid @RequestBody CheckoutRequestDto request) {
     CheckoutResponseDto response = checkoutService.processCheckout(request);
     return ResponseEntity.ok(response);

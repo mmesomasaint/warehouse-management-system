@@ -67,22 +67,22 @@ class CheckoutServiceTest {
         CartItemDto cartItem = new CartItemDto(productId, 5, BigDecimal.valueOf(19.99));
         CheckoutRequestDto checkoutRequest = new CheckoutRequestDto(storeId, null, null, List.of(cartItem));
 
-        when(employeeContextService.getCurrentEmployeeId()).thenReturn(1L);
-        when(employeeRepository.findById(1L)).thenReturn(Optional.of(mockEmployee));
         when(storeRepository.findById(storeId)).thenReturn(Optional.of(mockStore));
         when(productRepository.findById(productId)).thenReturn(Optional.of(mockProduct));
 
         InventoryBalance balance = new InventoryBalance();
+        balance.setProduct(mockProduct);
         balance.setQuantityOnHand(2); // Only 2 available
         balance.setAllocatedQuantity(0);
-        balance.setProduct(mockProduct);
         when(inventoryBalanceRepository.findById_StoreId(storeId)).thenReturn(List.of(balance));
 
         // Act & Assert
         assertThatThrownBy(() -> checkoutService.processCheckout(checkoutRequest))
                 .isInstanceOf(InsufficientStockException.class);
 
-        verify(salesOrderRepository, never()).save(any());
+        verify(inventoryBalanceRepository, never()).save(any());
+        verify(salesOrderItemRepository, never()).save(any());
+        verify(salesOrderRepository, times(1)).save(any());
     }
 
     @Test
@@ -91,8 +91,6 @@ class CheckoutServiceTest {
         CartItemDto cartItem = new CartItemDto(productId, 2, BigDecimal.valueOf(19.99));
         CheckoutRequestDto checkoutRequest = new CheckoutRequestDto(storeId, null, null, List.of(cartItem));
 
-        when(employeeContextService.getCurrentEmployeeId()).thenReturn(1L);
-        when(employeeRepository.findById(1L)).thenReturn(Optional.of(mockEmployee));
         when(storeRepository.findById(storeId)).thenReturn(Optional.of(mockStore));
         when(productRepository.findById(productId)).thenReturn(Optional.of(mockProduct));
 

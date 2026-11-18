@@ -44,29 +44,27 @@ class TokenServiceTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        // 1. Generate a real ephemeral RSA key pair for cryptographic testing
+        // Generate a real ephemeral RSA key pair for cryptographic testing
         KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
         keyPairGenerator.initialize(2048);
         KeyPair keyPair = keyPairGenerator.generateKeyPair();
         RSAPublicKey publicKey = (RSAPublicKey) keyPair.getPublic();
         RSAPrivateKey privateKey = (RSAPrivateKey) keyPair.getPrivate();
 
-        // 2. Configure mock RsaKeyProperties
-        when(rsaKeyProperties.publicKey()).thenReturn(publicKey);
-        when(rsaKeyProperties.privateKey()).thenReturn(privateKey);
+        // Configure mock RsaKeyProperties
         when(rsaKeyProperties.expirationMinutes()).thenReturn(60L);
 
-        // 3. Setup real Nimbus JwtEncoder and JwtDecoder using the generated keys
+        // Setup real Nimbus JwtEncoder and JwtDecoder using the generated keys
         JWK jwk = new RSAKey.Builder(publicKey).privateKey(privateKey).build();
         JWKSource<SecurityContext> jwks = new ImmutableJWKSet<>(new JWKSet(jwk));
         NimbusJwtEncoder jwtEncoder = new NimbusJwtEncoder(jwks);
         
         jwtDecoder = NimbusJwtDecoder.withPublicKey(publicKey).build();
 
-        // 4. Instantiate TokenService with real encoder
+        // Instantiate TokenService with real encoder
         tokenService = new TokenService(jwtEncoder, rsaKeyProperties);
 
-        // 5. Setup mock employee principal
+        // Setup mock employee principal
         Store store = new Store();
         UUID storeId = UUID.randomUUID();
         store.setStoreId(storeId);

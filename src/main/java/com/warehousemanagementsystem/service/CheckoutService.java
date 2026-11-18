@@ -14,6 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -60,25 +61,18 @@ public class CheckoutService {
         Customer customer = customerId != null ? customerRepository.findById(customerId).orElse(null) : null;
         Employee employee = employeeId != null ? employeeRepository.findById(employeeId).orElse(null) : null;
 
-        // Initialize Sales Order header
-        SalesOrder salesOrder = new SalesOrder();
-        salesOrder.setStore(store);
-        salesOrder.setCustomer(customer);
-        salesOrder.setEmployee(employee);
-        salesOrder.setOrderDate(OffsetDateTime.now());
-
+        // Validate stock and calculate totals BEFORE saving the SalesOrder
         BigDecimal totalAmount = BigDecimal.ZERO;
-        salesOrder = salesOrderRepository.save(salesOrder); // Save to get generated order ID
+        List<SalesOrderItem> itemsToSave = new ArrayList<>();
+        List<InventoryBalance> balancesToUpdate = new ArrayList<>();
 
-        // Process each line item, validate stock, and deduct inventory
         for (CartItemDto cartItem : cartItems) {
             Product product = productRepository.findById(cartItem.productId())
                     .orElseThrow(() -> new EntityNotFoundException("Product not found: " + cartItem.productId()));
 
-            // Find stock in the store's inventory balances (e.g., searching across zones or a specific zone)
             List<InventoryBalance> balances = inventoryBalanceRepository.findById_StoreId(storeId);
             InventoryBalance balance = balances.stream()
-                    .filter(b -> b.getProduct().getProductId().equals(cartItem.productId()))
+                    .filter(b -> b.getProduct() != null && b.getProduct().getProductId().equals(cartItem.productId()))
                     .findFirst()
                     .orElseThrow(() -> new IllegalStateException("Product " + product.getSku() + " not stocked in store " + storeId));
 
@@ -87,26 +81,33 @@ public class CheckoutService {
                 throw new InsufficientStockException(product.getProductId(), cartItem.quantity(), availableStock);
             }
 
-            // Deduct quantity on hand
             balance.setQuantityOnHand(balance.getQuantityOnHand() - cartItem.quantity());
-            inventoryBalanceRepository.save(balance);
+            balancesToUpdate.add(balance);
 
-            // Create order line item
             SalesOrderItem orderItem = new SalesOrderItem();
-            orderItem.setSalesOrder(salesOrder);
             orderItem.setProduct(product);
             orderItem.setQuantity(cartItem.quantity());
             orderItem.setUnitPrice(cartItem.unitPrice());
-            salesOrderItemRepository.save(orderItem);
+            itemsToSave.add(orderItem);
 
-            // Accumulate total
-            BigDecimal lineTotal = cartItem.unitPrice().multiply(BigDecimal.valueOf(cartItem.quantity()));
-            totalAmount = totalAmount.add(lineTotal);
+            totalAmount = totalAmount.add(cartItem.unitPrice().multiply(BigDecimal.valueOf(cartItem.quantity())));
         }
 
-        // Finalize order total amount
+        // Now persist everything cleanly once all checks pass
+        SalesOrder salesOrder = new SalesOrder();
+        salesOrder.setStore(store);
+        salesOrder.setCustomer(customer);
+        salesOrder.setEmployee(employee);
+        salesOrder.setOrderDate(OffsetDateTime.now());
         salesOrder.setTotalAmount(totalAmount);
         salesOrder = salesOrderRepository.save(salesOrder);
+
+        for (SalesOrderItem item : itemsToSave) {
+            item.setSalesOrder(salesOrder);
+            salesOrderItemRepository.save(item);
+        }
+        inventoryBalanceRepository.saveAll(balancesToUpdate);
+
 
         // Convert to Dto response
         return CheckoutResponseDto.builder()
