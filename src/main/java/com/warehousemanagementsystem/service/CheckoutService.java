@@ -5,6 +5,7 @@ import com.warehousemanagementsystem.repository.*;
 import com.warehousemanagementsystem.dto.CartItemDto;
 import com.warehousemanagementsystem.dto.CheckoutRequestDto;
 import com.warehousemanagementsystem.dto.CheckoutResponseDto;
+import com.warehousemanagementsystem.exception.InsufficientStockException;
 
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
@@ -83,8 +84,7 @@ public class CheckoutService {
 
             int availableStock = balance.getQuantityOnHand() - balance.getAllocatedQuantity();
             if (availableStock < cartItem.quantity()) {
-                throw new IllegalArgumentException("Insufficient stock for product: " + product.getProductName() 
-                        + ". Requested: " + cartItem.quantity() + ", Available: " + availableStock);
+                throw new InsufficientStockException(product.getProductId(), cartItem.quantity(), availableStock);
             }
 
             // Deduct quantity on hand
