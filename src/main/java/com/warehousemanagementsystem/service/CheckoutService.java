@@ -106,6 +106,7 @@ public class CheckoutService {
             item.setSalesOrder(salesOrder);
             salesOrderItemRepository.save(item);
         }
+        
         inventoryBalanceRepository.saveAll(balancesToUpdate);
 
 

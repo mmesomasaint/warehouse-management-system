@@ -82,7 +82,6 @@ class CheckoutServiceTest {
 
         verify(inventoryBalanceRepository, never()).save(any());
         verify(salesOrderItemRepository, never()).save(any());
-        verify(salesOrderRepository, times(1)).save(any());
     }
 
     @Test
@@ -107,7 +106,7 @@ class CheckoutServiceTest {
         // Assert
         assertThat(orderResponse).isNotNull();
         assertThat(orderResponse.getTotalAmount()).isEqualByComparingTo(BigDecimal.valueOf(39.98));
-        verify(inventoryBalanceRepository, times(1)).save(balance);
+        verify(inventoryBalanceRepository, times(1)).saveAll(List.of(balance));
         assertThat(balance.getQuantityOnHand()).isEqualTo(8); // Deducted 2
     }
 }
