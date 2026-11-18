@@ -1,6 +1,6 @@
 package com.warehousemanagementsystem.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.warehousemanagementsystem.service.CheckoutService;
 import com.warehousemanagementsystem.dto.*;
 import org.junit.jupiter.api.Test;
@@ -22,12 +22,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(CheckoutController.class)
 @AutoConfigureMockMvc(addFilters = false) // Bypasses JWT filter for direct controller slice testing
 class CheckoutControllerTest {
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Autowired
     private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     @MockitoBean
     private CheckoutService checkoutService;

@@ -3,7 +3,6 @@ package com.warehousemanagementsystem.security;
 import com.warehousemanagementsystem.model.Employee;
 import com.warehousemanagementsystem.model.Store;
 import com.warehousemanagementsystem.model.security.EmployeeRole;
-import com.warehousemanagementsystem.security.TokenService;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
@@ -29,6 +28,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doReturn;
 
 @ExtendWith(MockitoExtension.class)
 class TokenServiceTest {
@@ -96,7 +96,7 @@ class TokenServiceTest {
         Jwt decodedJwt = jwtDecoder.decode(tokenValue);
 
         assertThat(decodedJwt.getSubject()).isEqualTo("manager@warehouse.com");
-        assertThat(decodedJwt.getClaim("employeeId")).isEqualTo(10);
+        assertThat(decodedJwt.<Long>getClaim("employeeId")).isEqualTo(10);
         assertThat((String) decodedJwt.getClaim("scope")).contains("sales:checkout");
         assertThat(decodedJwt.getExpiresAt()).isNotNull();
     }

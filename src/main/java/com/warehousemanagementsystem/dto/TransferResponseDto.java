@@ -15,7 +15,7 @@ public class TransferResponseDto {
     private RegionalDistributionCenter sourceRdc;
     private Store sourceStore;
     private Store destinationStore;
-    private TransferStatus transferStatus = TransferStatus.PENDING;
+    @Builder.Default private TransferStatus transferStatus = TransferStatus.PENDING;
     private OffsetDateTime shipDate;
     private OffsetDateTime estimatedArrival;
     private OffsetDateTime actualArrival;

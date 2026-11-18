@@ -7,6 +7,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 
 @Builder
+@Data
 public class CheckoutResponseDto {
   private final Long orderId;
   private final Store store;

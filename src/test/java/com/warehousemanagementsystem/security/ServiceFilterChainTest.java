@@ -5,8 +5,8 @@ import com.warehousemanagementsystem.service.CheckoutService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -23,7 +23,6 @@ class SecurityFilterChainTest {
 
     @Test
     void shouldRejectUnauthenticatedRequestsToSecuredEndpoints() throws Exception {
-        // Act & Assert - No user logged in, expect 401 Unauthorized (or 403 depending on filter chain config)
         mockMvc.perform(post("/api/checkout"))
                 .andExpect(status().isUnauthorized());
     }
@@ -31,9 +30,7 @@ class SecurityFilterChainTest {
     @Test
     @WithMockUser(authorities = "sales:checkout")
     void shouldAllowAuthenticatedUserWithCorrectAuthority() throws Exception {
-        // Act & Assert - User has 'sales:checkout' permission, service mock handles execution
-        // (Assuming request body structure is validated or bypassed for test simplicity)
         mockMvc.perform(post("/api/checkout"))
-                .andExpect(status().isBadRequest()); // Fails at request body validation (400), proving security passed!
+                .andExpect(status().isBadRequest());
     }
 }

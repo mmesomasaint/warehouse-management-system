@@ -2,9 +2,12 @@ package com.warehousemanagementsystem.service;
 
 import com.warehousemanagementsystem.model.*;
 import com.warehousemanagementsystem.repository.*;
-
 import com.warehousemanagementsystem.security.EmployeeContextService;
-import jakarta.persistence.EntityNotFoundException;
+import com.warehousemanagementsystem.dto.ReceiveTransferRequestDto;
+import com.warehousemanagementsystem.dto.CreateTransferRequestDto;
+import com.warehousemanagementsystem.dto.TransferItemRequest;
+import com.warehousemanagementsystem.dto.TransferResponseDto;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,7 +15,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -80,13 +82,13 @@ class InventoryTransferServiceTest {
     @Test
     void shouldThrowExceptionWhenBothSourcesAreNull() {
         // Arrange
-        List<InventoryTransferService.TransferItemRequest> items = List.of(
-                new InventoryTransferService.TransferItemRequest(productId, 10)
+        List<TransferItemRequest> items = List.of(
+                new TransferItemRequest(productId, 10)
         );
         CreateTransferRequestDto createTransferRequest = new CreateTransferRequestDto(null, null, storeId, items);
 
         // Act & Assert
-        assertThatThrownBy(() -> transferService.createTransfer(creaeteTransferRequest))
+        assertThatThrownBy(() -> transferService.createTransfer(createTransferRequest))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Either sourceRdcId or sourceStoreId must be provided");
 
@@ -96,8 +98,8 @@ class InventoryTransferServiceTest {
     @Test
     void shouldCreateTransferSuccessfully() {
         // Arrange
-        List<InventoryTransferService.TransferItemRequest> items = List.of(
-                new InventoryTransferService.TransferItemRequest(productId, 15)
+        List<TransferItemRequest> items = List.of(
+                new TransferItemRequest(productId, 15)
         );
         CreateTransferRequestDto createTransferRequest = new CreateTransferRequestDto(rdcId, null, storeId, items);
 
@@ -111,21 +113,18 @@ class InventoryTransferServiceTest {
         });
 
         // Act
-        InventoryTransfer transfer = transferService.createTransfer(createTransferRequest);
+        TransferResponseDto transferResponse = transferService.createTransfer(createTransferRequest);
 
         // Assert
-        assertThat(transfer).isNotNull();
-        assertThat(transfer.getTransferStatus()).isEqualTo(TransferStatus.PENDING);
-        assertThat(transfer.getSourceRdc()).isEqualTo(mockRdc);
-        assertThat(transfer.getDestinationStore()).isEqualTo(mockStore);
+        assertThat(transferResponse).isNotNull();
+        assertThat(transferResponse.getTransferStatus()).isEqualTo(TransferStatus.PENDING);
+        assertThat(transferResponse.getSourceRdc()).isEqualTo(mockRdc);
+        assertThat(transferResponse.getDestinationStore()).isEqualTo(mockStore);
         verify(transferItemRepository, times(1)).save(any(InventoryTransferItem.class));
     }
 
     @Test
     void shouldShipTransferSuccessfully() {
-        // Arrange
-        when(employeeContextService.getCurrentEmployeeId()).thenReturn(1L);
-
         InventoryTransfer pendingTransfer = new InventoryTransfer();
         pendingTransfer.setTransferId(transferId);
         pendingTransfer.setTransferStatus(TransferStatus.PENDING);
@@ -134,19 +133,16 @@ class InventoryTransferServiceTest {
         when(transferRepository.save(any(InventoryTransfer.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // Act
-        InventoryTransfer shippedTransfer = transferService.shipTransfer(transferId);
+        TransferResponseDto shippedTransferResponse = transferService.shipTransfer(transferId);
 
         // Assert
-        assertThat(shippedTransfer.getTransferStatus()).isEqualTo(TransferStatus.IN_TRANSIT);
-        assertThat(shippedTransfer.getShipDate()).isNotNull();
+        assertThat(shippedTransferResponse.getTransferStatus()).isEqualTo(TransferStatus.IN_TRANSIT);
+        assertThat(shippedTransferResponse.getShipDate()).isNotNull();
         verify(transferRepository, times(1)).save(pendingTransfer);
     }
 
     @Test
     void shouldThrowExceptionWhenShippingNonPendingTransfer() {
-        // Arrange
-        when(employeeContextService.getCurrentEmployeeId()).thenReturn(1L);
-
         InventoryTransfer transitTransfer = new InventoryTransfer();
         transitTransfer.setTransferId(transferId);
         transitTransfer.setTransferStatus(TransferStatus.IN_TRANSIT);
@@ -163,9 +159,6 @@ class InventoryTransferServiceTest {
 
     @Test
     void shouldReceiveTransferAndCreateNewInventoryBalanceSuccessfully() {
-        // Arrange
-        when(employeeContextService.getCurrentEmployeeId()).thenReturn(1L);
-
         InventoryTransfer transitTransfer = new InventoryTransfer();
         transitTransfer.setTransferId(transferId);
         transitTransfer.setTransferStatus(TransferStatus.IN_TRANSIT);
@@ -189,11 +182,11 @@ class InventoryTransferServiceTest {
         when(transferRepository.save(any(InventoryTransfer.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // Act
-        InventoryTransfer deliveredTransfer = transferService.receiveTransfer(receiveTransferRequest);
+        TransferResponseDto deliveredTransferResponse = transferService.receiveTransfer(receiveTransferRequest);
 
         // Assert
-        assertThat(deliveredTransfer.getTransferStatus()).isEqualTo(TransferStatus.DELIVERED);
-        assertThat(deliveredTransfer.getActualArrival()).isNotNull();
+        assertThat(deliveredTransferResponse.getTransferStatus()).isEqualTo(TransferStatus.DELIVERED);
+        assertThat(deliveredTransferResponse.getActualArrival()).isNotNull();
         verify(inventoryBalanceRepository, times(1)).save(any(InventoryBalance.class));
     }
 }

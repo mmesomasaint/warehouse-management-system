@@ -5,7 +5,6 @@ import com.warehousemanagementsystem.model.*;
 import com.warehousemanagementsystem.repository.*;
 import com.warehousemanagementsystem.security.EmployeeContextService;
 import com.warehousemanagementsystem.dto.*;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -76,6 +75,7 @@ class CheckoutServiceTest {
         InventoryBalance balance = new InventoryBalance();
         balance.setQuantityOnHand(2); // Only 2 available
         balance.setAllocatedQuantity(0);
+        balance.setProduct(mockProduct);
         when(inventoryBalanceRepository.findById_StoreId(storeId)).thenReturn(List.of(balance));
 
         // Act & Assert
@@ -99,15 +99,16 @@ class CheckoutServiceTest {
         InventoryBalance balance = new InventoryBalance();
         balance.setQuantityOnHand(10);
         balance.setAllocatedQuantity(0);
+        balance.setProduct(mockProduct);
         when(inventoryBalanceRepository.findById_StoreId(storeId)).thenReturn(List.of(balance));
         when(salesOrderRepository.save(any(SalesOrder.class))).thenAnswer(inv -> inv.getArgument(0));
 
         // Act
-        SalesOrder order = checkoutService.processCheckout(checkoutRequest);
+        CheckoutResponseDto orderResponse = checkoutService.processCheckout(checkoutRequest);
 
         // Assert
-        assertThat(order).isNotNull();
-        assertThat(order.getTotalAmount()).isEqualByComparingTo(BigDecimal.valueOf(39.98));
+        assertThat(orderResponse).isNotNull();
+        assertThat(orderResponse.getTotalAmount()).isEqualByComparingTo(BigDecimal.valueOf(39.98));
         verify(inventoryBalanceRepository, times(1)).save(balance);
         assertThat(balance.getQuantityOnHand()).isEqualTo(8); // Deducted 2
     }
