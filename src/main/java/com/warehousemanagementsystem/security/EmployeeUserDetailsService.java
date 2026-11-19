@@ -8,11 +8,11 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
 @Service
-public class CustomUserDetailsService implements UserDetailsService {
+public class EmployeeUserDetailsService implements UserDetailsService {
 
     private final EmployeeRepository employeeRepository;
 
-    public CustomUserDetailsService(EmployeeRepository employeeRepository) {
+    public EmployeeUserDetailsService(EmployeeRepository employeeRepository) {
         this.employeeRepository = employeeRepository;
     }
 
@@ -20,6 +20,7 @@ public class CustomUserDetailsService implements UserDetailsService {
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         Employee employee = employeeRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Employee not found with email: " + email));
+        
 
         return new EmployeePrincipal(employee);
     }

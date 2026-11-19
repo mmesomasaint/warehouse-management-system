@@ -8,14 +8,16 @@ import java.util.stream.Collectors;
 public enum EmployeeRole {
     
     CASHIER(Set.of(
-            Permission.SALES_CHECKOUT,
-            Permission.INVENTORY_READ
+        Permission.SALES_CHECKOUT,
+        Permission.SALES_RETURN,
+        Permission.INVENTORY_READ
     )),
 
     FLOOR_SALES(Set.of(
-            Permission.SALES_CHECKOUT,
-            Permission.INVENTORY_READ,
-            Permission.TRANSFER_CREATE
+        Permission.SALES_CHECKOUT,
+        Permission.SALES_RETURN,
+        Permission.INVENTORY_READ,
+        Permission.TRANSFER_CREATE
     )),
 
     LOGISTICS_COORDINATOR(Set.of(
@@ -26,27 +28,37 @@ public enum EmployeeRole {
             Permission.TRANSFER_RECEIVE
     )),
 
+    HR_MANAGER(Set.of(
+        Permission.EMPLOYEE_MANAGE,
+        Permission.EMPLOYEE_READ,
+        Permission.EMPLOYEE_WRITE
+    )),
+
     STORE_MANAGER(Set.of(
-            Permission.SALES_CHECKOUT,
-            Permission.INVENTORY_READ,
-            Permission.INVENTORY_WRITE,
-            Permission.TRANSFER_CREATE,
-            Permission.TRANSFER_SHIP,
-            Permission.TRANSFER_RECEIVE,
-            Permission.EMPLOYEE_READ,
-            Permission.EMPLOYEE_WRITE
+        Permission.SALES_RETURN,
+        Permission.SALES_CHECKOUT,
+        Permission.INVENTORY_READ,
+        Permission.INVENTORY_WRITE,
+        Permission.TRANSFER_CREATE,
+        Permission.TRANSFER_SHIP,
+        Permission.TRANSFER_RECEIVE,
+        Permission.EMPLOYEE_READ,
+        Permission.EMPLOYEE_WRITE,
+        Permission.EMPLOYEE_MANAGE
     )),
 
     ADMIN(Set.of(
-            Permission.SALES_CHECKOUT,
-            Permission.INVENTORY_READ,
-            Permission.INVENTORY_WRITE,
-            Permission.TRANSFER_CREATE,
-            Permission.TRANSFER_SHIP,
-            Permission.TRANSFER_RECEIVE,
-            Permission.EMPLOYEE_READ,
-            Permission.EMPLOYEE_WRITE,
-            Permission.PAYROLL_APPROVE
+        Permission.SALES_CHECKOUT,
+        Permission.SALES_RETURN,
+        Permission.INVENTORY_READ,
+        Permission.INVENTORY_WRITE,
+        Permission.TRANSFER_CREATE,
+        Permission.TRANSFER_SHIP,
+        Permission.TRANSFER_RECEIVE,
+        Permission.EMPLOYEE_READ,
+        Permission.EMPLOYEE_WRITE,
+        Permission.EMPLOYEE_MANAGE,
+        Permission.PAYROLL_APPROVE
     ));
 
     private final Set<Permission> permissions;

@@ -10,16 +10,19 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.stream.Collectors;
+import java.util.List;
 
 @Service
 public class TokenService {
 
     private final JwtEncoder encoder;
     private final RsaKeyProperties rsaKeys;
+    private final long expirationMinutes;
 
     public TokenService(JwtEncoder encoder, RsaKeyProperties rsaKeys) {
         this.encoder = encoder;
         this.rsaKeys = rsaKeys;
+        this.expirationMinutes = 60L;
     }
 
     public String generateToken(Authentication authentication) {
@@ -41,5 +44,27 @@ public class TokenService {
             .build();
 
         return this.encoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
+    }public String generateToken(Authentication authentication, Long employeeId, String storeId) {
+        Instant now = Instant.now();
+
+        List<String> authorities = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toList());
+
+        JwtClaimsSet.Builder claimsBuilder = JwtClaimsSet.builder()
+                .issuer("warehouse-management-system")
+                .issuedAt(now)
+                .expiresAt(now.plus(expirationMinutes, ChronoUnit.MINUTES))
+                .subject(authentication.getName())
+                .claim("authorities", authorities);
+
+        if (employeeId != null) {
+            claimsBuilder.claim("employeeId", employeeId);
+        }
+        if (storeId != null) {
+            claimsBuilder.claim("storeId", storeId);
+        }
+
+        return encoder.encode(JwtEncoderParameters.from(claimsBuilder.build())).getTokenValue();
     }
 }
