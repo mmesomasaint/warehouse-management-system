@@ -1,7 +1,9 @@
 package com.warehousemanagementsystem.service;
 
 import com.warehousemanagementsystem.dto.CreateTransferRequestDto;
+import com.warehousemanagementsystem.dto.EditTransferRequestDto;
 import com.warehousemanagementsystem.dto.ReceiveTransferRequestDto;
+import com.warehousemanagementsystem.dto.RejectTransferRequestDto;
 import com.warehousemanagementsystem.dto.TransferItemRequest;
 import com.warehousemanagementsystem.dto.TransferResponseDto;
 import com.warehousemanagementsystem.event.TransferAuditedEvent;
@@ -104,7 +106,10 @@ public class InventoryTransferService {
     }
 
     @Transactional
-    public TransferResponseDto editTransfer(UUID transferId, List<TransferItemRequest> newItems) {
+    public TransferResponseDto editTransfer(EditTransferRequestDto editTransferRequest) {
+        UUID transferId = editTransferRequest.transferId();
+        List<TransferItemRequest> newItems = editTransferRequest.newItems();
+        
         Long editorId = employeeContextService.getCurrentEmployeeId();
         OffsetDateTime now = OffsetDateTime.now();
 
@@ -195,8 +200,8 @@ public class InventoryTransferService {
         Store destinationStore = transfer.getDestinationStore();
         UUID destStoreId = destinationStore.getStoreId();
 
-        InventoryZone zone = inventoryZoneRepository.findById(request.zoneId())
-                .orElseThrow(() -> new EntityNotFoundException("Inventory zone not found: " + request.zoneId()));
+        InventoryZone zone = inventoryZoneRepository.findById(request.defaultZoneId())
+                .orElseThrow(() -> new EntityNotFoundException("Inventory zone not found: " + request.defaultZoneId()));
 
         Map<UUID, Integer> receivedMap = request.receivedQuantities();
         for (InventoryTransferItem item : items) {
@@ -207,7 +212,7 @@ public class InventoryTransferService {
             transferItemRepository.save(item);
 
             InventoryBalance.InventoryBalanceId balanceId =
-                    new InventoryBalance.InventoryBalanceId(destStoreId, productId, request.zoneId());
+                    new InventoryBalance.InventoryBalanceId(destStoreId, productId, request.defaultZoneId());
             InventoryBalance balance = inventoryBalanceRepository.findById(balanceId).orElseGet(() -> {
                 InventoryBalance newBalance = new InventoryBalance();
                 newBalance.setId(balanceId);
@@ -242,7 +247,10 @@ public class InventoryTransferService {
     }
 
     @Transactional
-    public TransferResponseDto rejectTransfer(UUID transferId, String rejectionReason) {
+    public TransferResponseDto rejectTransfer(RejectTransferRequestDto request) {
+        UUID transferId = request.transferId();
+        String rejectionReason = request.rejectionReason();
+
         if (rejectionReason == null || rejectionReason.isBlank()) {
             throw new IllegalArgumentException("Rejection reason is required.");
         }
@@ -282,26 +290,12 @@ public class InventoryTransferService {
         if (editorId != null && transfer.getDestinationStore() != null) {
             UUID destStoreId = transfer.getDestinationStore().getStoreId();
             boolean belongsToDestStore = employeeRepository.findById(editorId)
-                    .map(emp -> destStoreId.equals(emp.getStoreId()))
+                    .map(emp -> emp.getStore() != null && destStoreId.equals(emp.getStore().getStoreId()))
                     .orElse(false);
             if (belongsToDestStore) {
                 return EditorType.RECEIVER;
             }
         }
         return EditorType.OTHER;
-    }
-    
-    private TransferResponseDto buildTransferResponse (InventoryTransfer transfer) {
-        return TransferResponseDto.builder()
-            .transferId(transfer.getTransferId())
-            .sourceRdc(transfer.getSourceRdc())
-            .sourceStore(transfer.getSourceStore())
-            .destinationStore(transfer.getDestinationStore())
-            .transferStatus(transfer.getTransferStatus())
-            .shipDate(transfer.getShipDate())
-            .estimatedArrival(transfer.getEstimatedArrival())
-            .actualArrival(transfer.getActualArrival())
-            .transferItems(transfer.getTransferItems())
-            .build();
     }
 }

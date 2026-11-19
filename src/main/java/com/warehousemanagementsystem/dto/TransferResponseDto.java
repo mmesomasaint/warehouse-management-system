@@ -20,4 +20,18 @@ public class TransferResponseDto {
     private OffsetDateTime estimatedArrival;
     private OffsetDateTime actualArrival;
     private List<InventoryTransferItem> transferItems;
+
+    public static TransferResponseDto from (InventoryTransfer transfer) {
+        return TransferResponseDto.builder()
+            .transferId(transfer.getTransferId())
+            .sourceRdc(transfer.getSourceRdc())
+            .sourceStore(transfer.getSourceStore())
+            .destinationStore(transfer.getDestinationStore())
+            .transferStatus(transfer.getTransferStatus())
+            .shipDate(transfer.getShipDate())
+            .estimatedArrival(transfer.getEstimatedArrival())
+            .actualArrival(transfer.getActualArrival())
+            .transferItems(transfer.getTransferItems())
+            .build();
+    }
 }
