@@ -1,13 +1,13 @@
 package com.warehousemanagementsystem.service;
 
+import com.warehousemanagementsystem.dto.CreateTransferRequestDto;
+import com.warehousemanagementsystem.dto.ReceiveTransferRequestDto;
+import com.warehousemanagementsystem.dto.RejectTransferRequestDto;
+import com.warehousemanagementsystem.dto.TransferItemRequest;
+import com.warehousemanagementsystem.dto.TransferResponseDto;
 import com.warehousemanagementsystem.model.*;
 import com.warehousemanagementsystem.repository.*;
 import com.warehousemanagementsystem.security.EmployeeContextService;
-import com.warehousemanagementsystem.dto.ReceiveTransferRequestDto;
-import com.warehousemanagementsystem.dto.CreateTransferRequestDto;
-import com.warehousemanagementsystem.dto.TransferItemRequest;
-import com.warehousemanagementsystem.dto.TransferResponseDto;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,6 +35,7 @@ class InventoryTransferServiceTest {
     @Mock private ProductRepository productRepository;
     @Mock private InventoryBalanceRepository inventoryBalanceRepository;
     @Mock private InventoryZoneRepository inventoryZoneRepository;
+    @Mock private EmployeeRepository employeeRepository;
     @Mock private EmployeeContextService employeeContextService;
 
     @InjectMocks
@@ -81,13 +82,11 @@ class InventoryTransferServiceTest {
 
     @Test
     void shouldThrowExceptionWhenBothSourcesAreNull() {
-        // Arrange
         List<TransferItemRequest> items = List.of(
                 new TransferItemRequest(productId, 10)
         );
         CreateTransferRequestDto createTransferRequest = new CreateTransferRequestDto(null, null, storeId, items);
 
-        // Act & Assert
         assertThatThrownBy(() -> transferService.createTransfer(createTransferRequest))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Either sourceRdcId or sourceStoreId must be provided");
@@ -97,7 +96,6 @@ class InventoryTransferServiceTest {
 
     @Test
     void shouldCreateTransferSuccessfully() {
-        // Arrange
         List<TransferItemRequest> items = List.of(
                 new TransferItemRequest(productId, 15)
         );
@@ -112,15 +110,64 @@ class InventoryTransferServiceTest {
             return t;
         });
 
-        // Act
         TransferResponseDto transferResponse = transferService.createTransfer(createTransferRequest);
 
-        // Assert
         assertThat(transferResponse).isNotNull();
         assertThat(transferResponse.getTransferStatus()).isEqualTo(TransferStatus.PENDING);
         assertThat(transferResponse.getSourceRdc()).isEqualTo(mockRdc);
         assertThat(transferResponse.getDestinationStore()).isEqualTo(mockStore);
         verify(transferItemRepository, times(1)).save(any(InventoryTransferItem.class));
+    }
+
+    @Test
+    void shouldEditPendingTransferItemsSuccessfully() {
+        List<TransferItemRequest> updatedItems = List.of(
+                new TransferItemRequest(productId, 25)
+        );
+
+        InventoryTransfer pendingTransfer = new InventoryTransfer();
+        pendingTransfer.setTransferId(transferId);
+        pendingTransfer.setTransferStatus(TransferStatus.PENDING);
+        pendingTransfer.setDestinationStore(mockStore);
+
+        InventoryTransferItem existingItem = new InventoryTransferItem();
+        existingItem.setProduct(mockProduct);
+        existingItem.setQuantityShipped(10);
+
+        when(employeeContextService.getCurrentEmployeeId()).thenReturn(1L);
+        when(employeeRepository.findById(1L)).thenReturn(Optional.of(mockEmployee));
+        when(transferRepository.findById(transferId)).thenReturn(Optional.of(pendingTransfer));
+        when(transferItemRepository.findById_TransferId(transferId)).thenReturn(List.of(existingItem));
+        when(productRepository.findById(productId)).thenReturn(Optional.of(mockProduct));
+        when(transferRepository.save(any(InventoryTransfer.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TransferResponseDto response = transferService.editTransfer(transferId, updatedItems);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getTransferStatus()).isEqualTo(TransferStatus.PENDING);
+        verify(transferItemRepository).deleteAll(List.of(existingItem));
+        verify(transferItemRepository, times(1)).save(any(InventoryTransferItem.class));
+        verify(transferRepository, times(1)).save(pendingTransfer);
+    }
+
+    @Test
+    void shouldRejectEditingNonPendingTransfer() {
+        List<TransferItemRequest> updatedItems = List.of(
+                new TransferItemRequest(productId, 25)
+        );
+
+        InventoryTransfer shippedTransfer = new InventoryTransfer();
+        shippedTransfer.setTransferId(transferId);
+        shippedTransfer.setTransferStatus(TransferStatus.IN_TRANSIT);
+
+        when(employeeContextService.getCurrentEmployeeId()).thenReturn(1L);
+        when(transferRepository.findById(transferId)).thenReturn(Optional.of(shippedTransfer));
+
+        assertThatThrownBy(() -> transferService.editTransfer(transferId, updatedItems))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("PENDING");
+
+        verify(transferItemRepository, never()).save(any());
     }
 
     @Test
@@ -132,10 +179,8 @@ class InventoryTransferServiceTest {
         when(transferRepository.findById(transferId)).thenReturn(Optional.of(pendingTransfer));
         when(transferRepository.save(any(InventoryTransfer.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        // Act
         TransferResponseDto shippedTransferResponse = transferService.shipTransfer(transferId);
 
-        // Assert
         assertThat(shippedTransferResponse.getTransferStatus()).isEqualTo(TransferStatus.IN_TRANSIT);
         assertThat(shippedTransferResponse.getShipDate()).isNotNull();
         verify(transferRepository, times(1)).save(pendingTransfer);
@@ -149,7 +194,6 @@ class InventoryTransferServiceTest {
 
         when(transferRepository.findById(transferId)).thenReturn(Optional.of(transitTransfer));
 
-        // Act & Assert
         assertThatThrownBy(() -> transferService.shipTransfer(transferId))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Transfer can only be shipped from PENDING status");
@@ -168,25 +212,38 @@ class InventoryTransferServiceTest {
         transferItem.setProduct(mockProduct);
         transferItem.setQuantityShipped(20);
 
-        Map<UUID, Integer> receivedQty = Map.of(
-                productId, 20
-        );
+        Map<UUID, Integer> receivedQty = Map.of(productId, 20);
         ReceiveTransferRequestDto receiveTransferRequest = new ReceiveTransferRequestDto(transferId, receivedQty, zoneId);
 
         when(transferRepository.findById(transferId)).thenReturn(Optional.of(transitTransfer));
         when(transferItemRepository.findById_TransferId(transferId)).thenReturn(List.of(transferItem));
         when(inventoryZoneRepository.findById(zoneId)).thenReturn(Optional.of(mockZone));
-        
-        // Simulate inventory balance does not exist yet for this store/product/zone
         when(inventoryBalanceRepository.findById(any())).thenReturn(Optional.empty());
         when(transferRepository.save(any(InventoryTransfer.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        // Act
         TransferResponseDto deliveredTransferResponse = transferService.receiveTransfer(receiveTransferRequest);
 
-        // Assert
         assertThat(deliveredTransferResponse.getTransferStatus()).isEqualTo(TransferStatus.DELIVERED);
         assertThat(deliveredTransferResponse.getActualArrival()).isNotNull();
         verify(inventoryBalanceRepository, times(1)).save(any(InventoryBalance.class));
+    }
+
+    @Test
+    void shouldRejectInTransitTransferWithReason() {
+        InventoryTransfer transitTransfer = new InventoryTransfer();
+        transitTransfer.setTransferId(transferId);
+        transitTransfer.setTransferStatus(TransferStatus.IN_TRANSIT);
+        transitTransfer.setDestinationStore(mockStore);
+
+        when(employeeContextService.getCurrentEmployeeId()).thenReturn(1L);
+        when(transferRepository.findById(transferId)).thenReturn(Optional.of(transitTransfer));
+        when(transferRepository.save(any(InventoryTransfer.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        RejectTransferRequestDto rejectTransferRequest = new RejectTransferRequestDto(transferId, "Pallet water damage on arrival");
+        TransferResponseDto rejectedResponse = transferService.rejectTransfer(rejectTransferRequest);
+
+        assertThat(rejectedResponse.getTransferStatus()).isEqualTo(TransferStatus.REJECTED);
+        verify(transferRepository, times(1)).save(transitTransfer);
+        verify(inventoryBalanceRepository, never()).save(any());
     }
 }
