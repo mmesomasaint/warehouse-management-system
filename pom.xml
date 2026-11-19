@@ -152,6 +152,9 @@
         <plugin>
           <artifactId>maven-surefire-plugin</artifactId>
           <version>3.2.5</version>
+          <configuration>
+            <forkedProcessExitTimeoutInSeconds>1</forkedProcessExitTimeoutInSeconds>
+          </configuration>
         </plugin>
         <plugin>
           <artifactId>maven-jar-plugin</artifactId>
