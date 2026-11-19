@@ -26,16 +26,15 @@ public class EmployeeManagementController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('employee:write')")
     public ResponseEntity<EmployeeSummaryResponse> registerEmployee(
             @RequestBody RegisterEmployeeRequest request) {
         EmployeeSummaryResponse created = employeeManagementService.registerEmployee(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    @PutMapping("/{employeeId}/role/permission")
+    @PutMapping("/{employeeId}/role/permissions")
     public ResponseEntity<EmployeeSummaryResponse> addPermissions(
-            @PathVariable Long employeeId,
+            @PathVariable("employeeId") Long employeeId,
             @RequestBody ExtraPermissionRequest request) {
         EmployeeSummaryResponse updated = employeeManagementService.updatePermissions(
                 employeeId,
@@ -47,7 +46,7 @@ public class EmployeeManagementController {
 
     @PutMapping("/{employeeId}/role")
     public ResponseEntity<EmployeeSummaryResponse> updateRole(
-            @PathVariable Long employeeId,
+            @PathVariable("employeeId") Long employeeId,
             @RequestBody UpdateEmployeeRoleRequest request) {
         EmployeeSummaryResponse updated = employeeManagementService.updateRole(
                 employeeId,
@@ -59,7 +58,7 @@ public class EmployeeManagementController {
 
     @PostMapping("/{employeeId}/deactivate")
     public ResponseEntity<EmployeeSummaryResponse> deactivateEmployee(
-            @PathVariable Long employeeId,
+            @PathVariable("employeeId") Long employeeId,
             @RequestBody DeactivateEmployeeRequest request) {
         EmployeeSummaryResponse deactivated = employeeManagementService.deactivateEmployee(
                 employeeId,
@@ -70,7 +69,7 @@ public class EmployeeManagementController {
 
     @GetMapping("/{employeeId}/audit-logs")
     public ResponseEntity<List<EmployeeAuditLogResponse>> getEmployeeAuditLogs(
-            @PathVariable Long employeeId) {
+            @PathVariable("employeeId") Long employeeId) {
         List<EmployeeAuditLogResponse> history = employeeManagementService.getAuditLogsForEmployee(employeeId);
         return ResponseEntity.ok(history);
     }

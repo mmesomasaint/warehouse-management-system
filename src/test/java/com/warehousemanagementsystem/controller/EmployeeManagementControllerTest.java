@@ -1,6 +1,5 @@
 package com.warehousemanagementsystem.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.warehousemanagementsystem.config.SecurityConfig;
 import com.warehousemanagementsystem.dto.DeactivateEmployeeRequest;
 import com.warehousemanagementsystem.dto.EmployeeSummaryResponse;
@@ -11,13 +10,17 @@ import com.warehousemanagementsystem.model.security.EmployeeRole;
 import com.warehousemanagementsystem.security.RsaKeyProperties;
 import com.warehousemanagementsystem.service.EmployeeManagementService;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.context.annotation.Bean;
+import org.springframework.boot.test.context.TestConfiguration;
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -38,12 +41,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(EmployeeManagementController.class)
 @Import({SecurityConfig.class, EmployeeManagementControllerTest.TestKeyConfig.class})
 class EmployeeManagementControllerTest {
+    private ObjectMapper objectMapper = new ObjectMapper();
 
     @Autowired
     private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     @MockitoBean
     private EmployeeManagementService employeeManagementService;
@@ -114,6 +115,35 @@ class EmployeeManagementControllerTest {
             .andExpect(jsonPath("$.active").value(true));
     }
 
+    @Test 
+    void shouldReturn200WhenAddingExtraPermissionsWithEmployeeManageAuthority() throws Exception {
+        UUID storeId = UUID.randomUUID();
+        ExtraPermissionRequest request = new ExtraPermissionRequest(
+            "transfer:create",
+            "Took up more inventory task"
+        );
+
+        EmployeeSummaryResponse expected = EmployeeSummaryResponse.builder()
+            .employeeId(42L)
+            .email("new.hire@warehouse.com")
+            .fullName("Kelechi Nnamdi")
+            .storeId(storeId)
+            .active(true)
+            .role(EmployeeRole.CASHIER)
+            .build();
+
+        when(employeeManagementService.updatePermissions(eq(42L), eq("transfer:create"), eq("Took up more inventory task")))
+                .thenReturn(expected);
+
+        mockMvc.perform(put("/api/employees/{employeeId}/role/permissions", 42L)
+                        .with(jwt().authorities(new SimpleGrantedAuthority("employee:manage")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.employeeId").value(42L))
+                .andExpect(jsonPath("$.role").value("CASHIER"));
+    }
+
     @Test
     void shouldReturn200WhenUpdatingRolesWithEmployeeManageAuthority() throws Exception {
         UUID storeId = UUID.randomUUID();
@@ -140,7 +170,7 @@ class EmployeeManagementControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.employeeId").value(42L))
-                .andExpect(jsonPath("$.roles[0]").value("STORE_MANAGER"));
+                .andExpect(jsonPath("$.role").value("STORE_MANAGER"));
     }
 
     @Test
@@ -153,7 +183,7 @@ class EmployeeManagementControllerTest {
             .email("new.hire@warehouse.com")
             .fullName("Kelechi Nnamdi")
             .storeId(storeId)
-            .active(true)
+            .active(false)
             .role(EmployeeRole.HR_MANAGER)
             .build();
 
@@ -169,9 +199,10 @@ class EmployeeManagementControllerTest {
                 .andExpect(jsonPath("$.active").value(false));
     }
 
-    @org.springframework.boot.test.context.TestConfiguration
+    @TestConfiguration
     static class TestKeyConfig {
-        @org.springframework.context.annotation.Bean
+        @Bean
+        @Primary
         RsaKeyProperties rsaKeyProperties() throws Exception {
             KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
             generator.initialize(2048);

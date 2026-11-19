@@ -12,6 +12,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -29,11 +30,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print; // REM: debug
 
 @WebMvcTest(EmployeeManagementController.class)
 @Import({
@@ -61,6 +64,7 @@ class EmployeeAuditLogsControllerTest {
     void shouldReturn403WhenAuthenticatedWithoutEmployeeManageAuthority() throws Exception {
         mockMvc.perform(get("/api/employees/{employeeId}/audit-logs", 42L)
                         .with(jwt().authorities(new SimpleGrantedAuthority("sales:checkout"))))
+                .andDo(print())
                 .andExpect(status().isForbidden());
 
         verify(employeeManagementService, never()).getAuditLogsForEmployee(any());
@@ -73,6 +77,7 @@ class EmployeeAuditLogsControllerTest {
 
         mockMvc.perform(get("/api/employees/{employeeId}/audit-logs", 999L)
                         .with(jwt().authorities(new SimpleGrantedAuthority("employee:manage"))))
+                .andDo(print())
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Employee not found: 999"));
     }
@@ -98,6 +103,7 @@ class EmployeeAuditLogsControllerTest {
 
         mockMvc.perform(get("/api/employees/{employeeId}/audit-logs", 42L)
                         .with(jwt().authorities(new SimpleGrantedAuthority("employee:manage"))))
+                .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].auditId").value(auditId.toString()))
@@ -111,6 +117,7 @@ class EmployeeAuditLogsControllerTest {
     @TestConfiguration
     static class TestKeyConfig {
         @Bean
+        @Primary
         RsaKeyProperties rsaKeyProperties() throws Exception {
             KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
             generator.initialize(2048);

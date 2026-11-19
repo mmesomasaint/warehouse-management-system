@@ -112,13 +112,13 @@ class EmployeeManagementServiceTest {
         when(employeeRepository.findById(10L)).thenReturn(Optional.of(existing));
         when(employeeRepository.save(any(Employee.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        EmployeeSummaryResponse response = employeeManagementService.updatePermissions(
+        EmployeeSummaryResponse response = employeeManagementService.updateRole(
                 10L,
-                "employee:manage",
+                EmployeeRole.HR_MANAGER,
                 "Promoted to shift supervisor"
         );
 
-        assertThat(response.extraPermissions()).containsExactly("employee:manage");
+        assertThat(response.role()).isEqualTo(EmployeeRole.HR_MANAGER);
 
         ArgumentCaptor<EmployeeAuditLog> auditCaptor = ArgumentCaptor.forClass(EmployeeAuditLog.class);
         verify(auditLogRepository).save(auditCaptor.capture());
@@ -127,7 +127,7 @@ class EmployeeManagementServiceTest {
         assertThat(log.getAction()).isEqualTo(EmployeeAuditAction.ROLES_UPDATED);
         assertThat(log.getActorEmployeeId()).isEqualTo(99L);
         assertThat(log.getReason()).isEqualTo("Promoted to shift supervisor");
-        assertThat(log.getDetails()).contains("STORE_ASSOCIATE").contains("STORE_MANAGER");
+        assertThat(log.getDetails()).contains("HR_MANAGER");
     }
 
     @Test

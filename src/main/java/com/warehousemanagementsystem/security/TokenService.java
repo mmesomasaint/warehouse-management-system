@@ -29,9 +29,9 @@ public class TokenService {
         EmployeePrincipal userPrincipal = (EmployeePrincipal) authentication.getPrincipal();
         Instant now = Instant.now();
 
-        String scope = authentication.getAuthorities().stream()
+        List<String> authorities = authentication.getAuthorities().stream()
             .map(GrantedAuthority::getAuthority)
-            .collect(Collectors.joining(" "));
+            .collect(Collectors.toList());
 
         JwtClaimsSet claims = JwtClaimsSet.builder()
             .issuer("warehouse-management-system")
@@ -40,31 +40,9 @@ public class TokenService {
             .subject(userPrincipal.getUsername()) // Email
             .claim("employeeId", userPrincipal.getEmployeeId())
             .claim("storeId", userPrincipal.getStoreId())
-            .claim("scope", scope)
+            .claim("authorities", authorities)
             .build();
 
         return this.encoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
-    }public String generateToken(Authentication authentication, Long employeeId, String storeId) {
-        Instant now = Instant.now();
-
-        List<String> authorities = authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .collect(Collectors.toList());
-
-        JwtClaimsSet.Builder claimsBuilder = JwtClaimsSet.builder()
-                .issuer("warehouse-management-system")
-                .issuedAt(now)
-                .expiresAt(now.plus(expirationMinutes, ChronoUnit.MINUTES))
-                .subject(authentication.getName())
-                .claim("authorities", authorities);
-
-        if (employeeId != null) {
-            claimsBuilder.claim("employeeId", employeeId);
-        }
-        if (storeId != null) {
-            claimsBuilder.claim("storeId", storeId);
-        }
-
-        return encoder.encode(JwtEncoderParameters.from(claimsBuilder.build())).getTokenValue();
     }
 }

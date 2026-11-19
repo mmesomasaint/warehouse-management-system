@@ -5,10 +5,13 @@ import com.warehousemanagementsystem.model.EmployeeAuditLog;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
-import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.DockerClientFactory;
@@ -16,6 +19,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -23,10 +27,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class EmployeeAuditLogRepositoryTest {
-
-    @Autowired
-    private TestEntityManager entityManager;
-
     static boolean dockerAvailable = false;
     static PostgreSQLContainer<?> postgres;
 
@@ -49,42 +49,42 @@ class EmployeeAuditLogRepositoryTest {
 
         // Target 10L created & updated by actor 100L; later deactivated by actor 200L
         auditLogRepository.saveAndFlush(new EmployeeAuditLog(
-                10L,
-                "staff.ten@warehouse.com",
-                EmployeeAuditAction.CREATED,
-                100L,
-                "Initial onboarding",
-                "Assigned STORE_ASSOCIATE",
-                t1
+            10L,
+            "staff.ten@warehouse.com",
+            EmployeeAuditAction.CREATED,
+            100L,
+            "Initial onboarding",
+            "Assigned STORE_ASSOCIATE",
+            t1
         ));
         auditLogRepository.saveAndFlush(new EmployeeAuditLog(
-                10L,
-                "staff.ten@warehouse.com",
-                EmployeeAuditAction.ROLES_UPDATED,
-                100L,
-                "Cross-training",
-                "Added RECEIVING_CLERK",
-                t2
+            10L,
+            "staff.ten@warehouse.com",
+            EmployeeAuditAction.ROLES_UPDATED,
+            100L,
+            "Cross-training",
+            "Added RECEIVING_CLERK",
+            t2
         ));
         auditLogRepository.saveAndFlush(new EmployeeAuditLog(
-                10L,
-                "staff.ten@warehouse.com",
-                EmployeeAuditAction.DEACTIVATED,
-                200L,
-                "End of shift contract",
-                "Account disabled",
-                t4
+            10L,
+            "staff.ten@warehouse.com",
+            EmployeeAuditAction.DEACTIVATED,
+            200L,
+            "End of shift contract",
+            "Account disabled",
+            t4
         ));
 
         // Target 20L created by actor 200L
         auditLogRepository.saveAndFlush(new EmployeeAuditLog(
-                20L,
-                "staff.twenty@warehouse.com",
-                EmployeeAuditAction.CREATED,
-                200L,
-                "Initial onboarding",
-                "Assigned TRANSFER_COORDINATOR",
-                t3
+            20L,
+            "staff.twenty@warehouse.com",
+            EmployeeAuditAction.CREATED,
+            200L,
+            "Initial onboarding",
+            "Assigned TRANSFER_COORDINATOR",
+            t3
         ));
     }
 
@@ -111,8 +111,8 @@ class EmployeeAuditLogRepositoryTest {
             registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
         } else {
             registry.add(
-                    "spring.datasource.url",
-                    () -> "jdbc:h2:mem:auditlogdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"
+                "spring.datasource.url",
+                () -> "jdbc:h2:mem:auditlogdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"
             );
             registry.add("spring.datasource.driver-class-name", () -> "org.h2.Driver");
             registry.add("spring.datasource.username", () -> "sa");
@@ -124,45 +124,45 @@ class EmployeeAuditLogRepositoryTest {
     @Test
     void shouldRetrieveLogsByTargetEmployeeIdOrderedByOccurredAtDesc() {
         List<EmployeeAuditLog> logsForTarget10 =
-                auditLogRepository.findByTargetEmployeeIdOrderByOccurredAtDesc(10L);
+            auditLogRepository.findByTargetEmployeeIdOrderByOccurredAtDesc(10L);
 
         assertThat(logsForTarget10).hasSize(3);
         assertThat(logsForTarget10)
-                .extracting(EmployeeAuditLog::getAction)
-                .containsExactly(
-                        EmployeeAuditAction.DEACTIVATED,
-                        EmployeeAuditAction.ROLES_UPDATED,
-                        EmployeeAuditAction.CREATED
-                );
+            .extracting(EmployeeAuditLog::getAction)
+            .containsExactly(
+                EmployeeAuditAction.DEACTIVATED,
+                EmployeeAuditAction.ROLES_UPDATED,
+                EmployeeAuditAction.CREATED
+            );
         assertThat(logsForTarget10)
-                .extracting(EmployeeAuditLog::getOccurredAt)
-                .containsExactly(t4, t2, t1);
+            .extracting(EmployeeAuditLog::getOccurredAt)
+            .containsExactly(t4, t2, t1);
     }
 
     @Test
     void shouldRetrieveLogsByActorEmployeeIdOrderedByOccurredAtDesc() {
         List<EmployeeAuditLog> logsByActor200 =
-                auditLogRepository.findByActorEmployeeIdOrderByOccurredAtDesc(200L);
+            auditLogRepository.findByActorEmployeeIdOrderByOccurredAtDesc(200L);
 
         assertThat(logsByActor200).hasSize(2);
         assertThat(logsByActor200)
-                .extracting(EmployeeAuditLog::getTargetEmployeeId)
-                .containsExactly(10L, 20L);
+            .extracting(EmployeeAuditLog::getTargetEmployeeId)
+            .containsExactly(10L, 20L);
         assertThat(logsByActor200)
-                .extracting(EmployeeAuditLog::getAction)
-                .containsExactly(EmployeeAuditAction.DEACTIVATED, EmployeeAuditAction.CREATED);
+            .extracting(EmployeeAuditLog::getAction)
+            .containsExactly(EmployeeAuditAction.DEACTIVATED, EmployeeAuditAction.CREATED);
         assertThat(logsByActor200)
-                .extracting(EmployeeAuditLog::getOccurredAt)
-                .containsExactly(t4, t3);
+            .extracting(EmployeeAuditLog::getOccurredAt)
+            .containsExactly(t4, t3);
     }
 
     @Test
     void shouldFilterByTargetEmployeeIdAndActionOrderedByOccurredAtDesc() {
         List<EmployeeAuditLog> createdLogsForTarget10 =
-                auditLogRepository.findByTargetEmployeeIdAndActionOrderByOccurredAtDesc(
-                        10L,
-                        EmployeeAuditAction.CREATED
-                );
+            auditLogRepository.findByTargetEmployeeIdAndActionOrderByOccurredAtDesc(
+                10L,
+                EmployeeAuditAction.CREATED
+            );
 
         assertThat(createdLogsForTarget10).hasSize(1);
         assertThat(createdLogsForTarget10.get(0).getActorEmployeeId()).isEqualTo(100L);
@@ -172,13 +172,13 @@ class EmployeeAuditLogRepositoryTest {
     @Test
     void shouldGenerateUuidOnPersist() {
         EmployeeAuditLog log = new EmployeeAuditLog(
-                50L,
-                "uuid.check@warehouse.com",
-                EmployeeAuditAction.CREATED,
-                100L,
-                "Initial onboarding",
-                "Assigned STORE_ASSOCIATE",
-                OffsetDateTime.parse("2026-11-19T12:00:00Z")
+            50L,
+            "uuid.check@warehouse.com",
+            EmployeeAuditAction.CREATED,
+            100L,
+            "Initial onboarding",
+            "Assigned STORE_ASSOCIATE",
+            OffsetDateTime.parse("2026-11-19T12:00:00Z")
         );
 
         EmployeeAuditLog saved = auditLogRepository.saveAndFlush(log);
@@ -187,40 +187,36 @@ class EmployeeAuditLogRepositoryTest {
         assertThat(saved.getAuditId()).isInstanceOf(java.util.UUID.class);
     }
 
-    @Test
-    void shouldEnforceNonNullConstraintsOnRequiredFields() {
-        // Missing targetEmail (null)
-        EmployeeAuditLog missingEmail = new EmployeeAuditLog(
+    @ParameterizedTest(name = "should reject null {0}")
+    @MethodSource("invalidAuditLogs")
+    void shouldEnforceNonNullConstraintsOnRequiredFields(String missingField, EmployeeAuditLog invalidLog) {
+        assertThatThrownBy(() -> auditLogRepository.saveAndFlush(invalidLog))
+            .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    private static Stream<Arguments> invalidAuditLogs() {
+        OffsetDateTime timestamp = OffsetDateTime.parse("2026-11-19T12:00:00Z");
+
+        return Stream.of(
+            Arguments.of("targetEmail", new EmployeeAuditLog(
                 50L,
                 null,
                 EmployeeAuditAction.CREATED,
                 100L,
                 "Initial onboarding",
                 "Details",
-                OffsetDateTime.parse("2026-11-19T12:00:00Z")
-        );
-        auditLogRepository.save(missingEmail);
-        assertThatThrownBy(() -> entityManager.flush())
-                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
-        entityManager.clear();
-
-        // Missing action (null)
-        EmployeeAuditLog missingAction = new EmployeeAuditLog(
+                timestamp
+            )),
+            Arguments.of("action", new EmployeeAuditLog(
                 50L,
                 "notnull.check@warehouse.com",
                 null,
                 100L,
                 "Initial onboarding",
                 "Details",
-                OffsetDateTime.parse("2026-11-19T12:00:00Z")
-        );
-        auditLogRepository.save(missingAction);
-        assertThatThrownBy(() -> entityManager.flush())
-                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
-        entityManager.clear();
-
-        // Missing occurredAt (null)
-        EmployeeAuditLog missingTimestamp = new EmployeeAuditLog(
+                timestamp
+            )),
+            Arguments.of("occurredAt", new EmployeeAuditLog(
                 50L,
                 "notnull.check@warehouse.com",
                 EmployeeAuditAction.DEACTIVATED,
@@ -228,10 +224,7 @@ class EmployeeAuditLogRepositoryTest {
                 "Account disabled",
                 "Details",
                 null
+            ))
         );
-        auditLogRepository.save(missingTimestamp);
-        assertThatThrownBy(() -> entityManager.flush())
-                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
-        entityManager.clear();
     }
 }

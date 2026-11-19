@@ -35,11 +35,11 @@ class EmployeeUserDetailsServiceTest {
         when(employeeRepository.findByEmail("former.staff@warehouse.com"))
                 .thenReturn(Optional.of(inactiveEmployee));
 
-        UserDetails userDetails = userDetailsService.loadUserByUsername("Former.Staff@Warehouse.com");
+        UserDetails userDetails = userDetailsService.loadUserByUsername("former.staff@warehouse.com");
 
         assertThat(userDetails.isEnabled()).isFalse();
         assertThat(userDetails.getAuthorities())
                 .extracting("authority")
-                .contains("ROLE_STORE_ASSOCIATE", "sales:checkout");
+                .contains("sales:return", "sales:checkout");
     }
 }

@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
@@ -25,6 +26,7 @@ import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.UUID;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -44,25 +46,19 @@ class TokenServiceTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        // Generate a real ephemeral RSA key pair for cryptographic testing
-        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-        keyPairGenerator.initialize(2048);
-        KeyPair keyPair = keyPairGenerator.generateKeyPair();
-        RSAPublicKey publicKey = (RSAPublicKey) keyPair.getPublic();
-        RSAPrivateKey privateKey = (RSAPrivateKey) keyPair.getPrivate();
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(2048);
+        KeyPair pair = generator.generateKeyPair();
+        RSAPublicKey publicKey = (RSAPublicKey) pair.getPublic();
+        RSAPrivateKey privateKey = (RSAPrivateKey) pair.getPrivate();
 
-        // Configure mock RsaKeyProperties
-        when(rsaKeyProperties.expirationMinutes()).thenReturn(60L);
+        RsaKeyProperties rsaKeys = new RsaKeyProperties(publicKey, privateKey, 60L);
 
-        // Setup real Nimbus JwtEncoder and JwtDecoder using the generated keys
         JWK jwk = new RSAKey.Builder(publicKey).privateKey(privateKey).build();
-        JWKSource<SecurityContext> jwks = new ImmutableJWKSet<>(new JWKSet(jwk));
-        NimbusJwtEncoder jwtEncoder = new NimbusJwtEncoder(jwks);
-        
+        JwtEncoder realEncoder = new NimbusJwtEncoder(new ImmutableJWKSet<>(new JWKSet(jwk)));
         jwtDecoder = NimbusJwtDecoder.withPublicKey(publicKey).build();
 
-        // Instantiate TokenService with real encoder
-        tokenService = new TokenService(jwtEncoder, rsaKeyProperties);
+        tokenService = new TokenService(realEncoder, rsaKeys);
 
         // Setup mock employee principal
         Store store = new Store();
@@ -94,8 +90,8 @@ class TokenServiceTest {
         Jwt decodedJwt = jwtDecoder.decode(tokenValue);
 
         assertThat(decodedJwt.getSubject()).isEqualTo("manager@warehouse.com");
-        assertThat(decodedJwt.<Long>getClaim("employeeId")).isEqualTo(10);
-        assertThat((String) decodedJwt.getClaim("scope")).contains("sales:checkout");
+        assertThat(decodedJwt.<Long>getClaim("employeeId")).isEqualTo(10L);
+        assertThat(decodedJwt.<List<String>>getClaim("authorities")).contains("sales:checkout", "ROLE_STORE_MANAGER");
         assertThat(decodedJwt.getExpiresAt()).isNotNull();
     }
 }

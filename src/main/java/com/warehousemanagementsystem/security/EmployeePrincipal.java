@@ -50,5 +50,5 @@ public class EmployeePrincipal implements UserDetails {
     public boolean isCredentialsNonExpired() { return true; }
 
     @Override
-    public boolean isEnabled() { return true; }
+    public boolean isEnabled() { return employee.isActive(); }
 }
