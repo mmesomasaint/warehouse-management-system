@@ -1,6 +1,8 @@
 package com.warehousemanagementsystem.service;
 
+import com.warehousemanagementsystem.event.TransferAuditedEvent;
 import com.warehousemanagementsystem.dto.CreateTransferRequestDto;
+import com.warehousemanagementsystem.dto.EditTransferRequestDto;
 import com.warehousemanagementsystem.dto.ReceiveTransferRequestDto;
 import com.warehousemanagementsystem.dto.RejectTransferRequestDto;
 import com.warehousemanagementsystem.dto.TransferItemRequest;
@@ -8,6 +10,7 @@ import com.warehousemanagementsystem.dto.TransferResponseDto;
 import com.warehousemanagementsystem.model.*;
 import com.warehousemanagementsystem.repository.*;
 import com.warehousemanagementsystem.security.EmployeeContextService;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +30,7 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class InventoryTransferServiceTest {
+    @Mock private ApplicationEventPublisher eventPublisher;
 
     @Mock private InventoryTransferRepository transferRepository;
     @Mock private InventoryTransferItemRepository transferItemRepository;
@@ -117,6 +121,7 @@ class InventoryTransferServiceTest {
         assertThat(transferResponse.getSourceRdc()).isEqualTo(mockRdc);
         assertThat(transferResponse.getDestinationStore()).isEqualTo(mockStore);
         verify(transferItemRepository, times(1)).save(any(InventoryTransferItem.class));
+        verify(eventPublisher).publishEvent(any(TransferAuditedEvent.class));
     }
 
     @Test
@@ -134,6 +139,8 @@ class InventoryTransferServiceTest {
         existingItem.setProduct(mockProduct);
         existingItem.setQuantityShipped(10);
 
+        EditTransferRequestDto editTransferRequest = new EditTransferRequestDto(transferId, updatedItems);
+
         when(employeeContextService.getCurrentEmployeeId()).thenReturn(1L);
         when(employeeRepository.findById(1L)).thenReturn(Optional.of(mockEmployee));
         when(transferRepository.findById(transferId)).thenReturn(Optional.of(pendingTransfer));
@@ -141,13 +148,14 @@ class InventoryTransferServiceTest {
         when(productRepository.findById(productId)).thenReturn(Optional.of(mockProduct));
         when(transferRepository.save(any(InventoryTransfer.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        TransferResponseDto response = transferService.editTransfer(transferId, updatedItems);
+        TransferResponseDto response = transferService.editTransfer(editTransferRequest);
 
         assertThat(response).isNotNull();
         assertThat(response.getTransferStatus()).isEqualTo(TransferStatus.PENDING);
         verify(transferItemRepository).deleteAll(List.of(existingItem));
         verify(transferItemRepository, times(1)).save(any(InventoryTransferItem.class));
         verify(transferRepository, times(1)).save(pendingTransfer);
+        verify(eventPublisher).publishEvent(any(TransferAuditedEvent.class));
     }
 
     @Test
@@ -156,6 +164,8 @@ class InventoryTransferServiceTest {
                 new TransferItemRequest(productId, 25)
         );
 
+        EditTransferRequestDto editTransferRequest = new EditTransferRequestDto(transferId, updatedItems);
+
         InventoryTransfer shippedTransfer = new InventoryTransfer();
         shippedTransfer.setTransferId(transferId);
         shippedTransfer.setTransferStatus(TransferStatus.IN_TRANSIT);
@@ -163,7 +173,7 @@ class InventoryTransferServiceTest {
         when(employeeContextService.getCurrentEmployeeId()).thenReturn(1L);
         when(transferRepository.findById(transferId)).thenReturn(Optional.of(shippedTransfer));
 
-        assertThatThrownBy(() -> transferService.editTransfer(transferId, updatedItems))
+        assertThatThrownBy(() -> transferService.editTransfer(editTransferRequest))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("PENDING");
 
@@ -175,6 +185,7 @@ class InventoryTransferServiceTest {
         InventoryTransfer pendingTransfer = new InventoryTransfer();
         pendingTransfer.setTransferId(transferId);
         pendingTransfer.setTransferStatus(TransferStatus.PENDING);
+        pendingTransfer.setDestinationStore(mockStore);
 
         when(transferRepository.findById(transferId)).thenReturn(Optional.of(pendingTransfer));
         when(transferRepository.save(any(InventoryTransfer.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -226,6 +237,7 @@ class InventoryTransferServiceTest {
         assertThat(deliveredTransferResponse.getTransferStatus()).isEqualTo(TransferStatus.DELIVERED);
         assertThat(deliveredTransferResponse.getActualArrival()).isNotNull();
         verify(inventoryBalanceRepository, times(1)).save(any(InventoryBalance.class));
+        verify(eventPublisher).publishEvent(any(TransferAuditedEvent.class));
     }
 
     @Test
@@ -245,5 +257,6 @@ class InventoryTransferServiceTest {
         assertThat(rejectedResponse.getTransferStatus()).isEqualTo(TransferStatus.REJECTED);
         verify(transferRepository, times(1)).save(transitTransfer);
         verify(inventoryBalanceRepository, never()).save(any());
+        verify(eventPublisher).publishEvent(any(TransferAuditedEvent.class));
     }
 }
