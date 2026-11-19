@@ -1,15 +1,16 @@
 package com.warehousemanagementsystem.service;
 
+import com.warehousemanagementsystem.dto.TransferResponseDto;
+import com.warehousemanagementsystem.dto.CreateTransferRequestDto;
+import com.warehousemanagementsystem.dto.ReceiveTransferRequestDto;
+import com.warehousemanagementsystem.dto.RejectTransferRequestDto;
+import com.warehousemanagementsystem.dto.TransferItemRequest;
 import com.warehousemanagementsystem.model.*;
 import com.warehousemanagementsystem.repository.*;
-import com.warehousemanagementsystem.dto.CreateTransferRequestDto;
-import com.warehousemanagementsystem.dto.TransferResponseDto;
-import com.warehousemanagementsystem.dto.ReceiveTransferRequestDto;
-import com.warehousemanagementsystem.dto.TransferItemRequest;
+import com.warehousemanagementsystem.security.EmployeeContextService;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -26,6 +27,7 @@ public class InventoryTransferService {
     private final ProductRepository productRepository;
     private final InventoryBalanceRepository inventoryBalanceRepository;
     private final InventoryZoneRepository inventoryZoneRepository;
+    private final EmployeeContextService employeeContextService;
 
     public InventoryTransferService(InventoryTransferRepository transferRepository,
                                     InventoryTransferItemRepository transferItemRepository,
@@ -33,7 +35,8 @@ public class InventoryTransferService {
                                     StoreRepository storeRepository,
                                     ProductRepository productRepository,
                                     InventoryBalanceRepository inventoryBalanceRepository,
-                                    InventoryZoneRepository inventoryZoneRepository ) {
+                                    InventoryZoneRepository inventoryZoneRepository,
+                                    EmployeeContextService employeeContextService) {
         this.transferRepository = transferRepository;
         this.transferItemRepository = transferItemRepository;
         this.rdcRepository = rdcRepository;
@@ -41,15 +44,15 @@ public class InventoryTransferService {
         this.productRepository = productRepository;
         this.inventoryBalanceRepository = inventoryBalanceRepository;
         this.inventoryZoneRepository = inventoryZoneRepository;
+        this.employeeContextService = employeeContextService;
     }
 
     @Transactional
-    @PreAuthorize("hasAuthority('transfer:create')") // Only Logistics Coordinators, Managers, or Admins can initiate a transfer
-    public TransferResponseDto createTransfer(CreateTransferRequestDto transferRequest) {
-        UUID sourceRdcId = transferRequest.sourceRdcId();
-        UUID sourceStoreId = transferRequest.sourceStoreId();
-        UUID destinationStoreId = transferRequest.destinationStoreId();
-        List<TransferItemRequest> items = transferRequest.items();
+    public TransferResponseDto createTransfer(CreateTransferRequestDto createTransferRequest) {
+        UUID sourceRdcId = createTransferRequest.sourceRdcId();
+        UUID sourceStoreId = createTransferRequest.sourceStoreId();
+        UUID destinationStoreId = createTransferRequest.destinationStoreId();
+        List<TransferItemRequest> items = createTransferRequest.items();
 
         if (sourceRdcId == null && sourceStoreId == null) {
             throw new IllegalArgumentException("Either sourceRdcId or sourceStoreId must be provided.");
@@ -85,7 +88,38 @@ public class InventoryTransferService {
     }
 
     @Transactional
-    @PreAuthorize("hasAuthority('transfer:ship')") // Only Logistics Coordinators, Managers, or Admins can ship
+    public TransferResponseDto editTransfer(UUID transferId, List<TransferItemRequest> newItems) {
+        Long editorEmployeeId = employeeContextService.getCurrentEmployeeId();
+
+        InventoryTransfer transfer = transferRepository.findById(transferId)
+                .orElseThrow(() -> new EntityNotFoundException("Transfer not found: " + transferId));
+
+        if (transfer.getTransferStatus() != TransferStatus.PENDING) {
+            throw new IllegalStateException("Transfer can only be edited while in PENDING status.");
+        }
+
+        // Remove existing items and replace with updated manifest
+        List<InventoryTransferItem> existingItems = transferItemRepository.findById_TransferId(transferId);
+        transferItemRepository.deleteAll(existingItems);
+
+        for (TransferItemRequest itemReq : newItems) {
+            Product product = productRepository.findById(itemReq.productId())
+                    .orElseThrow(() -> new EntityNotFoundException("Product not found: " + itemReq.productId()));
+
+            InventoryTransferItem transferItem = new InventoryTransferItem();
+            transferItem.setTransfer(transfer);
+            transferItem.setProduct(product);
+            transferItem.setQuantityShipped(itemReq.quantityShipped());
+            transferItem.setQuantityReceived(0);
+
+            transferItemRepository.save(transferItem);
+        }
+
+        // Optional REM: Log audit record tracking that editorEmployeeId modified this transfer
+        return buildTransferResponse(transfer);
+    }
+
+    @Transactional
     public TransferResponseDto shipTransfer(UUID transferId) {
         InventoryTransfer transfer = transferRepository.findById(transferId)
                 .orElseThrow(() -> new EntityNotFoundException("Transfer not found: " + transferId));
@@ -96,17 +130,15 @@ public class InventoryTransferService {
 
         transfer.setTransferStatus(TransferStatus.IN_TRANSIT);
         transfer.setShipDate(OffsetDateTime.now());
-        transfer = transferRepository.save(transfer);
 
-        return buildTransferResponse(transfer);
+        return buildTransferResponse(transferRepository.save(transfer));
     }
 
     @Transactional
-    @PreAuthorize("hasAuthority('transfer:receive')") // Only staff with receive rights
-    public TransferResponseDto receiveTransfer(ReceiveTransferRequestDto transferRequest) {
-        UUID transferId = transferRequest.transferId();
-        Map<UUID, Integer> receivedQuantities = transferRequest.receivedQuantities(); 
-        Long defaultZoneId = transferRequest.defaultZoneId();
+    public TransferResponseDto receiveTransfer(ReceiveTransferRequestDto receiveTransferRequest) {
+        UUID transferId = receiveTransferRequest.transferId();
+        Map<UUID, Integer> receivedQuantities = receiveTransferRequest.receivedQuantities();
+        Long defaultZoneId = receiveTransferRequest.defaultZoneId();
 
         InventoryTransfer transfer = transferRepository.findById(transferId)
                 .orElseThrow(() -> new EntityNotFoundException("Transfer not found: " + transferId));
@@ -119,45 +151,55 @@ public class InventoryTransferService {
         Store destinationStore = transfer.getDestinationStore();
         UUID destStoreId = destinationStore.getStoreId();
 
-        // Fetch the destination inventory zone (e.g 'Back Stockroom' or 'Loading Dock')
         InventoryZone zone = inventoryZoneRepository.findById(defaultZoneId)
-            .orElseThrow(() -> new EntityNotFoundException("InventoryZone not found: " + defaultZoneId));
+                .orElseThrow(() -> new EntityNotFoundException("Inventory zone not found: " + defaultZoneId));
 
         for (InventoryTransferItem item : items) {
-            Product product = item.getProduct();
-            UUID productId = product.getProductId();
-
+            UUID productId = item.getProduct().getProductId();
             int receivedQty = receivedQuantities.getOrDefault(productId, item.getQuantityShipped());
-            
+
             item.setQuantityReceived(receivedQty);
             transferItemRepository.save(item);
 
-            // Construct the composite key ID
             InventoryBalance.InventoryBalanceId balanceId = new InventoryBalance.InventoryBalanceId(destStoreId, productId, defaultZoneId);
-
-            // Find existing balance or initialize a new one if it doesn't exist yet for this store/product/zone
             InventoryBalance balance = inventoryBalanceRepository.findById(balanceId).orElseGet(() -> {
                 InventoryBalance newBalance = new InventoryBalance();
                 newBalance.setId(balanceId);
                 newBalance.setStore(destinationStore);
-                newBalance.setProduct(product);
+                newBalance.setProduct(item.getProduct());
                 newBalance.setZone(zone);
                 newBalance.setQuantityOnHand(0);
                 newBalance.setAllocatedQuantity(0);
-                newBalance.setMinimumSafetyStock(10); // Using our DEFAULT_SAFETY_THRESHOLD from schema
+                newBalance.setMinimumSafetyStock(10);
                 return newBalance;
             });
-            
-            // Add the received shipment quantity to the current stock on hand
+
             balance.setQuantityOnHand(balance.getQuantityOnHand() + receivedQty);
             inventoryBalanceRepository.save(balance);
         }
 
         transfer.setTransferStatus(TransferStatus.DELIVERED);
         transfer.setActualArrival(OffsetDateTime.now());
-        transfer = transferRepository.save(transfer);
 
-        return buildTransferResponse(transfer);
+        return buildTransferResponse(transferRepository.save(transfer));
+    }
+
+    @Transactional
+    public TransferResponseDto rejectTransfer(RejectTransferRequestDto rejectTransferRequest) {
+        UUID transferId = rejectTransferRequest.transferId();
+        String rejectionReason = rejectTransferRequest.rejectionReason();
+
+        InventoryTransfer transfer = transferRepository.findById(transferId)
+                .orElseThrow(() -> new EntityNotFoundException("Transfer not found: " + transferId));
+
+        if (transfer.getTransferStatus() != TransferStatus.IN_TRANSIT && transfer.getTransferStatus() != TransferStatus.PENDING) {
+            throw new IllegalStateException("Transfer cannot be rejected in its current status: " + transfer.getTransferStatus());
+        }
+
+        transfer.setTransferStatus(TransferStatus.REJECTED);
+        // Optional REM: Save rejection reason to an audit log or notes column
+
+        return buildTransferResponse(transferRepository.save(transfer));
     }
 
     private TransferResponseDto buildTransferResponse (InventoryTransfer transfer) {

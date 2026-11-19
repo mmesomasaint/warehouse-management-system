@@ -5,5 +5,6 @@ public enum TransferStatus {
     PICKED,
     IN_TRANSIT,
     DELIVERED,
-    CANCELLED
+    CANCELLED,
+    REJECTED
 }
